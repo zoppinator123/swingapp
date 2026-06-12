@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SwingApp — Golf Swing Analyzer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>SwingApp</h1>
+    <p>Upload a swing video, get posture feedback against a tour reference profile.</p>
+  </header>
+
+  <main>
+    <section id="stage">
+      <div id="video-wrap">
+        <video id="video" playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div id="drop-hint">Drop a swing video here<br>or use “Choose video”</div>
+      </div>
+
+      <div id="transport" hidden>
+        <button id="play" title="Play / pause">▶</button>
+        <button id="prev" title="Previous frame">⏴</button>
+        <button id="next" title="Next frame">⏵</button>
+        <input id="scrubber" type="range" min="0" max="0" step="1" value="0">
+        <span id="frame-label">0 / 0</span>
+      </div>
+      <div id="phase-chips"></div>
+    </section>
+
+    <aside id="panel">
+      <div class="control">
+        <label for="view">Camera view</label>
+        <select id="view">
+          <option value="down-the-line">Down the line (behind, looking at target)</option>
+          <option value="face-on">Face on (chest facing camera)</option>
+        </select>
+      </div>
+
+      <div class="control">
+        <label for="file" class="button">Choose video</label>
+        <input id="file" type="file" accept="video/*" hidden>
+        <span id="file-name" class="muted">No video loaded</span>
+      </div>
+
+      <button id="analyze" disabled>Analyze swing</button>
+      <progress id="progress" max="1" value="0" hidden></progress>
+      <p id="status" class="muted"></p>
+
+      <section id="reference-info" hidden>
+        <h2>Reference profile</h2>
+        <p id="reference-name" class="muted"></p>
+      </section>
+
+      <section id="report" hidden>
+        <h2>Checkpoint report</h2>
+        <div id="metrics"></div>
+      </section>
+
+      <section id="feedback-section" hidden>
+        <h2>Feedback</h2>
+        <ul id="feedback"></ul>
+      </section>
+    </aside>
+  </main>
+
+  <footer>
+    <p class="muted">Prototype: body posture only (no club tracking). Phase detection is
+    heuristic — scrub the timeline to inspect any frame. Pose model runs locally in your
+    browser via MediaPipe; the video never leaves your device.</p>
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
