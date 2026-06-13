@@ -98,6 +98,13 @@ export function detectPhases(frames) {
     }
   }
 
+  // Guarantee strictly increasing checkpoints so downstream tempo / time-warp
+  // never see a zero or negative span on a degenerate clip.
+  const last = frames.length - 1;
+  if (top <= address) top = Math.min(address + 1, last);
+  if (impact <= top) impact = Math.min(top + 1, last);
+  if (finish <= impact) finish = Math.min(impact + 1, last);
+
   return { address, top, impact, finish };
 }
 

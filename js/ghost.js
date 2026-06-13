@@ -48,6 +48,10 @@ export async function loadGhost(view) {
     if (!res.ok) return null;
     const data = await res.json();
     if (data.view !== view || !data.frames?.length || !data.phases) return null;
+    // Guard against a partial/malformed export: the address frame must carry
+    // all 33 landmark rows the aligner and time-warp index into.
+    const addr = data.frames[data.phases.address];
+    if (!Array.isArray(addr) || addr.length < 33) return null;
     return data;
   } catch {
     return null;

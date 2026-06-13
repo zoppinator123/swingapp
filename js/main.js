@@ -103,7 +103,10 @@ function loadFile(file) {
 }
 
 els.file.addEventListener("change", () => loadFile(els.file.files[0]));
-els.newSwing.addEventListener("click", () => els.file.click());
+els.newSwing.addEventListener("click", () => {
+  els.file.value = ""; // so re-selecting the same clip still fires "change"
+  els.file.click();
+});
 
 els.videoWrap.addEventListener("dragover", (e) => {
   e.preventDefault();
@@ -391,17 +394,13 @@ els.scrubber.addEventListener("input", () => showFrame(Number(els.scrubber.value
 els.prev.addEventListener("click", () => showFrame(state.current - 1));
 els.next.addEventListener("click", () => showFrame(state.current + 1));
 
-els.play.addEventListener("click", () => {
-  if (els.video.paused) {
-    els.video.play();
-    els.play.classList.add("playing");
-  } else {
-    els.video.pause();
-  }
-});
+els.play.addEventListener("click", () => togglePlay());
 
 els.ghostToggle.addEventListener("change", () => drawFrame(state.current));
 
+// Drive the play/pause icon from the media events so every path (button,
+// click-to-play, keyboard, loop restart) stays in sync.
+els.video.addEventListener("play", () => els.play.classList.add("playing"));
 els.video.addEventListener("pause", () => els.play.classList.remove("playing"));
 els.video.addEventListener("ended", () => {
   if (state.loopSwing && state.phases) {
@@ -412,16 +411,16 @@ els.video.addEventListener("ended", () => {
   }
 });
 
-// Click anywhere on the replay (except the ghost toggle) to play/pause.
+// Click anywhere on the replay (except the ghost toggle) to play/pause —
+// but never while analysis is seeking frame-by-frame, or it corrupts timing.
 els.videoWrap.addEventListener("click", (e) => {
-  if (e.target.closest("#ghost-control") || !els.video.src || !els.dropHint.hidden) return;
+  if (e.target.closest("#ghost-control") || state.analyzing || !state.frames.length) return;
   togglePlay();
 });
 
 function togglePlay() {
   if (els.video.paused) {
     els.video.play();
-    els.play.classList.add("playing");
   } else {
     els.video.pause();
   }
@@ -447,6 +446,8 @@ document.addEventListener("keydown", (e) => {
   if (!state.frames.length) return;
   const tag = e.target.tagName;
   if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || e.target.isContentEditable) return;
+  // Space already activates a focused button/link; don't also toggle play.
+  if (e.key === " " && (tag === "BUTTON" || tag === "A" || tag === "LABEL")) return;
   switch (e.key) {
     case " ": e.preventDefault(); togglePlay(); break;
     case "ArrowLeft": e.preventDefault(); els.video.pause(); showFrame(state.current - 1); break;
