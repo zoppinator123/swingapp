@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "source": "Screen recording of 'JUSTIN THOMAS 120fps SLOW MOTION DTL IRON GOLF SWING' (GolfswingHD, YouTube), committed as 'Loom Message - 12 June 2026.mp4'",
+    "view": "down-the-line",
+    "club": "iron",
+    "extracted": "2026-06-12",
+    "method": "MediaPipe Pose (BlazePose full, tasks-vision 0.10.14) on 17 frames sampled around address/top/impact of one swing; metrics computed with js/metrics.js; ranges are JT's measured mean padded with a coaching tolerance",
+    "measured": {
+      "address": { "spineAngle": 24.7, "kneeFlex": 164.2 },
+      "top": { "spineAngleDelta": 0.4, "headSway": 0.04, "hipSway": 0.0, "kneeFlex": 159.5 },
+      "impact": { "spineAngleDelta": -1.6, "headSway": 0.07, "hipSway": 0.01, "kneeFlex": 162.0 }
+    }
+  },
+  "down-the-line": {
+    "name": "Justin Thomas (iron, DTL)",
+    "phases": {
+      "address": {
+        "spineAngle": { "min": 20, "max": 30 },
+        "kneeFlex": { "min": 157, "max": 171 }
+      },
+      "top": {
+        "headSway": { "max": 0.14 },
+        "spineAngleDelta": { "min": -5, "max": 5 }
+      },
+      "impact": {
+        "spineAngleDelta": { "min": -6, "max": 4 },
+        "headSway": { "max": 0.15 }
+      }
+    }
+  }
+}

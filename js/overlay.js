@@ -1,27 +1,15 @@
-// Draws the analysis overlay on top of the video: skeleton, spine line
-// (green inside the reference range, red outside), the dashed target wedge
-// showing where the spine should be, and the head-stability box.
+// Draws the analysis overlay on top of the video: skeleton (per-bone green/
+// red when ghost comparison is active), the time-matched reference ghost,
+// spine line (green inside the reference range, red outside), the dashed
+// target wedge showing where the spine should be, and the head-stability box.
 
 import { LM, midHip, midShoulder, torsoLength, spineAngle } from "./metrics.js";
-
-const BONES = [
-  [LM.L_SHOULDER, LM.R_SHOULDER],
-  [LM.L_SHOULDER, LM.L_ELBOW],
-  [LM.L_ELBOW, LM.L_WRIST],
-  [LM.R_SHOULDER, LM.R_ELBOW],
-  [LM.R_ELBOW, LM.R_WRIST],
-  [LM.L_SHOULDER, LM.L_HIP],
-  [LM.R_SHOULDER, LM.R_HIP],
-  [LM.L_HIP, LM.R_HIP],
-  [LM.L_HIP, LM.L_KNEE],
-  [LM.L_KNEE, LM.L_ANKLE],
-  [LM.R_HIP, LM.R_KNEE],
-  [LM.R_KNEE, LM.R_ANKLE],
-];
+import { BONES, BONE_TOLERANCE, boneDeviations } from "./ghost.js";
 
 const GOOD = "#2ecc71";
 const BAD = "#e74c3c";
 const NEUTRAL = "rgba(255, 255, 255, 0.55)";
+const GHOST = "rgba(91, 173, 255, 0.6)";
 
 function toPx(p, W, H) {
   return { x: p.x * W, y: p.y * H };
@@ -40,16 +28,34 @@ function line(ctx, a, b, color, width, dash = []) {
   ctx.restore();
 }
 
-function drawSkeleton(ctx, lm, W, H) {
-  for (const [i, j] of BONES) {
-    line(ctx, toPx(lm[i], W, H), toPx(lm[j], W, H), NEUTRAL, 3);
-  }
+// boneColors: optional per-bone color array (indexed like BONES); bones
+// without one fall back to neutral.
+function drawSkeleton(ctx, lm, W, H, boneColors) {
+  BONES.forEach(([i, j], k) => {
+    const color = boneColors?.[k] ?? NEUTRAL;
+    line(ctx, toPx(lm[i], W, H), toPx(lm[j], W, H), color, boneColors ? 4 : 3);
+  });
   ctx.save();
   ctx.fillStyle = NEUTRAL;
   for (const i of Object.values(LM)) {
     const p = toPx(lm[i], W, H);
     ctx.beginPath();
     ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// The reference ghost skeleton, already in pixel space.
+function drawGhost(ctx, ghostPx) {
+  for (const [i, j] of BONES) {
+    line(ctx, ghostPx[i], ghostPx[j], GHOST, 3, [7, 5]);
+  }
+  ctx.save();
+  ctx.fillStyle = GHOST;
+  for (const i of Object.values(LM)) {
+    ctx.beginPath();
+    ctx.arc(ghostPx[i].x, ghostPx[i].y, 3, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
@@ -114,14 +120,27 @@ function drawHeadBox(ctx, lm, addressLm, tolerance, W, H) {
   ctx.restore();
 }
 
-// options: { addressLm, spineRange, headTolerance, posturePhase } — the
-// guides are suppressed after impact (posturePhase === "done") since
-// follow-through posture is intentionally different.
+// options: { addressLm, spineRange, headTolerance, posturePhase, ghostLm } —
+// the spine/head guides are suppressed after impact (posturePhase ===
+// "done") since follow-through posture is intentionally different. ghostLm
+// is the time-matched reference skeleton in pixel space; when present, the
+// ghost is drawn under the player and every bone of the player's skeleton
+// is colored by how far it deviates from the ghost's matching segment.
 export function drawOverlay(ctx, W, H, lm, options = {}) {
   ctx.clearRect(0, 0, W, H);
+
+  if (options.ghostLm) drawGhost(ctx, options.ghostLm);
   if (!lm) return;
 
-  drawSkeleton(ctx, lm, W, H);
+  let boneColors = null;
+  if (options.ghostLm) {
+    const userPx = lm.map((p) => toPx(p, W, H));
+    boneColors = boneDeviations(userPx, options.ghostLm).map((d, k) =>
+      d <= BONE_TOLERANCE[k] ? GOOD : BAD
+    );
+  }
+
+  drawSkeleton(ctx, lm, W, H, boneColors);
 
   const active = options.posturePhase !== "done";
   drawSpineGuide(ctx, lm, options.addressLm, active ? options.spineRange : null, W, H);

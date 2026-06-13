@@ -37,22 +37,29 @@ entirely in your browser — your swing video never leaves your device.
 4. Grades each checkpoint against the reference profile and draws the
    overlay: skeleton, spine line (green in range / red out), dashed target
    wedge for spine angle, and a head-stability box.
-5. Generates plain-language feedback (e.g. early extension, head sway).
+5. Overlays Justin Thomas as a blue "ghost" skeleton, time-warped so his
+   address/top/impact/finish land on yours, scaled to your body and mirrored
+   for handedness — and colors each limb segment of your skeleton green/red
+   by how far it strays from his matching segment at that moment.
+6. Generates plain-language feedback (e.g. early extension, head sway).
 
 ## The Justin Thomas reference profile
 
-The bundled ranges in `js/reference.js` are placeholder tour baselines. To
-replace them with JT's actual numbers, commit his swing footage under
-[`reference/justin-thomas/`](reference/justin-thomas/) — see the README there
-for naming and formats. The extraction step will generate
-`reference/justin-thomas/profile.json`, which the app loads automatically in
-place of the defaults.
+The **down-the-line** view now uses JT's measured numbers:
+`reference/justin-thomas/profile.json` was extracted from slow-motion DTL iron
+footage (stills and the swing clip live alongside it) and the app loads it
+automatically. The **face-on** view still falls back to the placeholder tour
+baselines in `js/reference.js` — commit face-on JT footage under
+[`reference/justin-thomas/`](reference/justin-thomas/) (see the README there
+for naming) and rerun the extraction step to fill it in.
 
 ## Roadmap
 
 - [x] Web prototype: upload → pose overlay → checkpoint grading → feedback
-- [ ] Extract the Justin Thomas profile from committed footage
-- [ ] Side-by-side ghost comparison (your frame vs JT at the same checkpoint)
+- [x] Extract the Justin Thomas profile from committed footage (down-the-line
+      iron; face-on footage still wanted)
+- [x] Ghost comparison overlay (JT's skeleton on your replay, time-matched,
+      with per-limb green/red grading) — down-the-line only so far
 - [ ] Rotation metrics (shoulder/hip turn, X-factor) and tempo (3:1 ratio)
 - [ ] Manual checkpoint correction when auto-detection misses
 - [ ] Native mobile app with in-app slow-mo capture and real-time feedback

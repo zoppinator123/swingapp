@@ -2,6 +2,7 @@ import { createLandmarker, analyzeVideo } from "./pose.js";
 import { detectPhases } from "./phases.js";
 import { computeMetrics, gradeMetrics, METRIC_LABELS } from "./metrics.js";
 import { loadReference, PHASE_LABELS } from "./reference.js";
+import { loadGhost, ghostFrameIndex, createGhostAligner } from "./ghost.js";
 import { drawOverlay } from "./overlay.js";
 import { buildFeedback } from "./feedback.js";
 
@@ -26,6 +27,8 @@ const els = {
   status: $("status"),
   referenceInfo: $("reference-info"),
   referenceName: $("reference-name"),
+  ghostControl: $("ghost-control"),
+  ghostToggle: $("ghost-toggle"),
   report: $("report"),
   metrics: $("metrics"),
   feedbackSection: $("feedback-section"),
@@ -37,6 +40,9 @@ const state = {
   frames: [],
   phases: null,
   ref: null,
+  ghost: null,
+  ghostAlign: null,
+  chips: [],
   addressLm: null,
   current: 0,
   analyzing: false,
@@ -54,11 +60,15 @@ function loadFile(file) {
   state.frames = [];
   state.phases = null;
   state.addressLm = null;
+  state.ghost = null;
+  state.ghostAlign = null;
+  els.ghostControl.hidden = true;
   els.transport.hidden = true;
   els.report.hidden = true;
   els.feedbackSection.hidden = true;
   els.referenceInfo.hidden = true;
   els.phaseChips.innerHTML = "";
+  state.chips = [];
   ctx.clearRect(0, 0, els.overlay.width, els.overlay.height);
   els.status.textContent = "";
 }
@@ -81,6 +91,9 @@ els.videoWrap.addEventListener("drop", (e) => {
 els.video.addEventListener("loadedmetadata", () => {
   els.overlay.width = els.video.videoWidth;
   els.overlay.height = els.video.videoHeight;
+  // Let the stage hug the clip (portrait phone videos especially); CSS caps
+  // the height so tall clips don't push the controls off screen.
+  els.videoWrap.style.aspectRatio = `${els.video.videoWidth} / ${els.video.videoHeight}`;
   els.analyze.disabled = false;
   els.status.textContent = "Video loaded. Pick the camera view, then Analyze.";
 });
@@ -115,6 +128,13 @@ els.analyze.addEventListener("click", async () => {
 
     state.ref = await loadReference(els.view.value);
     state.addressLm = state.frames[state.phases.address]?.landmarks ?? null;
+
+    state.ghost = await loadGhost(els.view.value);
+    state.ghostAlign =
+      state.ghost && state.addressLm
+        ? createGhostAligner(state.ghost, state.addressLm, els.overlay.width, els.overlay.height)
+        : null;
+    els.ghostControl.hidden = !state.ghostAlign;
 
     els.referenceName.textContent = state.ref.name;
     els.referenceInfo.hidden = false;
@@ -172,14 +192,22 @@ function drawFrame(i) {
     state.ref?.phases?.top?.headSway?.max ??
     null;
 
+  let ghostLm = null;
+  if (state.ghostAlign && els.ghostToggle.checked) {
+    const gf = state.ghost.frames[ghostFrameIndex(state.ghost, state.phases, i)];
+    if (gf) ghostLm = state.ghostAlign(gf);
+  }
+
   drawOverlay(ctx, els.overlay.width, els.overlay.height, frame.landmarks, {
     addressLm: state.addressLm,
     spineRange,
     headTolerance,
     posturePhase,
+    ghostLm,
   });
 
   els.frameLabel.textContent = `${i + 1} / ${state.frames.length}`;
+  updateActiveChip(i);
 }
 
 function showFrame(i) {
@@ -197,15 +225,16 @@ els.next.addEventListener("click", () => showFrame(state.current + 1));
 els.play.addEventListener("click", () => {
   if (els.video.paused) {
     els.video.play();
-    els.play.textContent = "⏸";
+    els.play.classList.add("playing");
   } else {
     els.video.pause();
-    els.play.textContent = "▶";
   }
 });
 
-els.video.addEventListener("pause", () => (els.play.textContent = "▶"));
-els.video.addEventListener("ended", () => (els.play.textContent = "▶"));
+els.ghostToggle.addEventListener("change", () => drawFrame(state.current));
+
+els.video.addEventListener("pause", () => els.play.classList.remove("playing"));
+els.video.addEventListener("ended", () => els.play.classList.remove("playing"));
 
 function playbackLoop() {
   if (!els.video.paused && state.frames.length) {
@@ -222,6 +251,7 @@ requestAnimationFrame(playbackLoop);
 
 function renderPhaseChips() {
   els.phaseChips.innerHTML = "";
+  state.chips = [];
   for (const [phase, label] of Object.entries(PHASE_LABELS)) {
     const i = state.phases[phase];
     if (i == null) continue;
@@ -233,13 +263,30 @@ function renderPhaseChips() {
       showFrame(i);
     });
     els.phaseChips.appendChild(chip);
+    state.chips.push({ idx: i, el: chip });
   }
+}
+
+// Highlights the chip of the phase the scrubber is currently inside.
+function updateActiveChip(i) {
+  if (!state.chips) return;
+  let active = null;
+  for (const c of state.chips) if (i >= c.idx) active = c.el;
+  for (const c of state.chips) c.el.classList.toggle("active", c.el === active);
 }
 
 function renderReport() {
   const table = document.createElement("table");
   table.className = "metrics";
-  table.innerHTML = "<tr><th>Checkpoint</th><th>Metric</th><th>Value</th></tr>";
+  table.innerHTML =
+    "<tr><th>Checkpoint</th><th>Metric</th><th>Target</th><th>Value</th></tr>";
+
+  const fmtRange = (r) => {
+    if (r.min != null && r.max != null) return `${r.min} – ${r.max}`;
+    if (r.max != null) return `≤ ${r.max}`;
+    if (r.min != null) return `≥ ${r.min}`;
+    return "";
+  };
 
   for (const phase of ["address", "top", "impact"]) {
     const lm = state.frames[state.phases[phase]]?.landmarks;
@@ -256,7 +303,8 @@ function renderReport() {
       row.innerHTML =
         `<td>${PHASE_LABELS[phase]}</td>` +
         `<td>${METRIC_LABELS[name] ?? name}</td>` +
-        `<td class="${cls}">${metrics[name].toFixed(2)}</td>`;
+        `<td class="target">${fmtRange(phaseRef[name])}</td>` +
+        `<td><span class="${cls}">${metrics[name].toFixed(2)}</span></td>`;
       table.appendChild(row);
     }
   }
