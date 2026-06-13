@@ -3,37 +3,53 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0c0f14">
-  <title>SwingApp — Golf Swing Analyzer</title>
+  <meta name="theme-color" content="#0A0F0C">
+  <meta name="description" content="Read your golf swing like a tour pro — posture, tempo and a frame-by-frame comparison against Justin Thomas.">
+  <title>SwingApp — Swing Analysis</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <div class="brand">
-      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
-        <circle cx="16" cy="16" r="15" fill="none" stroke="currentColor" stroke-width="2"/>
-        <path d="M13 24V8l9 3.5-9 3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-        <path d="M10 25.5c1.5 1 4 1 6 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <div>
-        <h1>SwingApp</h1>
-        <p>Your swing vs. the tour reference</p>
-      </div>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="SwingApp home">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none">
+          <path d="M14 4.5v21" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M14 5l8.5 2.8L14 11z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>
+          <path d="M6 24.5c5 3 15 3 20-1" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand-text">
+        <span class="brand-name">SwingApp</span>
+        <span class="brand-kicker">swing analysis</span>
+      </span>
+    </a>
+    <div class="topbar-end">
+      <span class="benchmark-badge" id="reference-info" hidden>
+        <span class="badge-label">Benchmark</span>
+        <span class="badge-value" id="reference-name">Justin Thomas</span>
+      </span>
     </div>
   </header>
 
-  <main>
+  <main class="layout">
     <section id="stage">
       <div id="video-wrap">
         <video id="video" playsinline muted></video>
         <canvas id="overlay"></canvas>
-        <div id="drop-hint">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 16V4m0 0-4 4m4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          </svg>
-          <strong>Add your swing video</strong>
-          <span>Drop a clip here or tap “Choose video” below</span>
+
+        <label id="ghost-control" class="hud-toggle" hidden>
+          <input id="ghost-toggle" type="checkbox" checked>
+          <span class="switch" aria-hidden="true"></span>
+          <span class="hud-toggle-label">Ghost</span>
+        </label>
+
+        <div id="drop-hint" class="dropzone">
+          <img class="dropzone-art" src="assets/empty-state.svg" alt="" onerror="this.remove()">
+          <div class="dropzone-copy">
+            <h2 class="display">See your swing<br>like a tour pro</h2>
+            <p>Drop a swing clip here, or use <strong>Choose video</strong>. Everything runs on your device — your footage never leaves the phone.</p>
+          </div>
         </div>
       </div>
 
@@ -53,28 +69,39 @@
           <span id="frame-label">0 / 0</span>
         </div>
       </div>
+
       <div id="phase-chips"></div>
+
       <div id="adjust-row" hidden>
         <button id="adjust">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m14.5 7 3 3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
           Adjust checkpoints
         </button>
-        <span id="adjust-hint" hidden>Scrub to the correct frame, then tap a checkpoint to move it there.</span>
+        <span id="adjust-hint" hidden>Scrub to the right frame, then tap a checkpoint to move it there.</span>
       </div>
+
+      <p class="overlay-legend" id="overlay-legend" hidden>
+        <span><i class="swatch good"></i>on JT's path</span>
+        <span><i class="swatch bad"></i>off path</span>
+        <span><i class="swatch ghost"></i>JT ghost</span>
+      </p>
     </section>
 
     <aside id="panel">
-      <section class="card">
+      <section class="card deck">
         <div class="control">
           <label for="view">Camera view</label>
-          <select id="view">
-            <option value="down-the-line">Down the line (behind, looking at target)</option>
-            <option value="face-on">Face on (chest facing camera)</option>
-          </select>
+          <div class="select-wrap">
+            <select id="view">
+              <option value="down-the-line">Down the line — behind, toward the target</option>
+              <option value="face-on">Face on — chest toward the camera</option>
+            </select>
+            <svg class="select-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
         </div>
 
         <div class="control">
-          <label for="file" class="button">
+          <label for="file" class="button button-secondary">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
             Choose video
           </label>
@@ -82,48 +109,50 @@
           <span id="file-name" class="muted">No video loaded</span>
         </div>
 
-        <button id="analyze" disabled>Analyze swing</button>
+        <button id="analyze" class="button button-primary" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h3l2.5 6 3-12 2.5 6h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Analyze swing
+        </button>
         <progress id="progress" max="1" value="0" hidden></progress>
         <p id="status" class="muted" role="status"></p>
       </section>
 
-      <section class="card" id="reference-info" hidden>
-        <h2>Reference</h2>
-        <p id="reference-name" class="muted"></p>
-        <label id="ghost-control" hidden>
-          <input id="ghost-toggle" type="checkbox" checked>
-          <span class="switch" aria-hidden="true"></span>
-          <span>Ghost overlay</span>
-        </label>
-        <ul class="legend">
-          <li><i class="swatch good"></i>limb on the reference path</li>
-          <li><i class="swatch bad"></i>limb off the reference path</li>
-          <li><i class="swatch ghost"></i>reference ghost skeleton</li>
-        </ul>
-      </section>
-
-      <section class="card" id="tempo-section" hidden>
-        <h2>Tempo</h2>
-        <div id="tempo-ratio"><span id="tempo-value">–</span><span class="unit"> : 1</span></div>
-        <p id="tempo-detail" class="muted"></p>
-      </section>
-
-      <section class="card" id="report" hidden>
-        <h2>Checkpoint report</h2>
-        <div id="metrics"></div>
+      <section class="card verdict" id="summary" hidden>
+        <p class="kicker">Your swing</p>
+        <h2 class="display" id="summary-headline">—</h2>
+        <p class="muted" id="summary-sub"></p>
+        <div class="stat-strip">
+          <div class="stat">
+            <span class="stat-num" id="summary-score">–</span>
+            <span class="stat-label">checkpoints matched</span>
+          </div>
+          <div class="stat" id="tempo-section">
+            <span class="stat-num" id="tempo-ratio"><span id="tempo-value">–</span><span class="unit"> : 1</span></span>
+            <span class="stat-label">tempo</span>
+          </div>
+        </div>
+        <p class="micro muted" id="tempo-detail"></p>
       </section>
 
       <section class="card" id="feedback-section" hidden>
-        <h2>Feedback</h2>
+        <h2 class="card-title">What to work on</h2>
         <ul id="feedback"></ul>
       </section>
+
+      <details class="card details" id="report" hidden>
+        <summary class="card-title">
+          Checkpoint detail
+          <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div id="metrics"></div>
+      </details>
     </aside>
   </main>
 
   <footer>
-    <p class="muted">Prototype: body posture only (no club tracking). Phase detection is
-    heuristic — scrub the timeline to inspect any frame. Pose model runs locally in your
-    browser via MediaPipe; the video never leaves your device.</p>
+    <p class="muted">Body posture only — no club tracking. Checkpoints are auto-detected; scrub or
+    use <em>Adjust checkpoints</em> to fix any that miss. The pose model runs locally in your
+    browser via MediaPipe; your video never leaves your device.</p>
   </footer>
 
   <script type="module" src="js/main.js"></script>

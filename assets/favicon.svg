@@ -1,0 +1,6 @@
+<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SwingApp">
+  <rect width="32" height="32" rx="8" fill="#10160F"/>
+  <path d="M13.5 7.5v17" stroke="#C8A45A" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M13.5 8l7.5 2.7-7.5 2.7z" fill="#C8A45A"/>
+  <path d="M8 24.5c4 1.9 11.5 1.9 15.5-1.1" stroke="#C8A45A" stroke-width="2.6" stroke-linecap="round"/>
+</svg>

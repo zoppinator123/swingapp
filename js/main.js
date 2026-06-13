@@ -32,6 +32,11 @@ const els = {
   referenceName: $("reference-name"),
   ghostControl: $("ghost-control"),
   ghostToggle: $("ghost-toggle"),
+  overlayLegend: $("overlay-legend"),
+  summary: $("summary"),
+  summaryHeadline: $("summary-headline"),
+  summarySub: $("summary-sub"),
+  summaryScore: $("summary-score"),
   report: $("report"),
   metrics: $("metrics"),
   tempoSection: $("tempo-section"),
@@ -80,6 +85,8 @@ function loadFile(file) {
   els.tempoSection.hidden = true;
   els.feedbackSection.hidden = true;
   els.referenceInfo.hidden = true;
+  els.summary.hidden = true;
+  els.overlayLegend.hidden = true;
   els.phaseChips.innerHTML = "";
   state.chips = [];
   ctx.clearRect(0, 0, els.overlay.width, els.overlay.height);
@@ -142,15 +149,17 @@ els.analyze.addEventListener("click", async () => {
     state.ref = await loadReference(els.view.value);
     state.ghost = await loadGhost(els.view.value);
 
-    els.referenceName.textContent = state.ref.name;
+    els.referenceName.textContent = shortName(state.ref.name);
     els.referenceInfo.hidden = false;
+    els.overlayLegend.hidden = !state.ghost;
 
     setupTransport();
     recomputeFromPhases();
     showFrame(state.phases.address);
+    revealResults();
 
     els.status.textContent =
-      "Done. Scrub the timeline or jump to a checkpoint. Green = inside the reference window, red = outside.";
+      "Tap a coaching note to jump to that frame, or scrub the timeline yourself.";
   } catch (err) {
     console.error(err);
     els.status.textContent = `Analysis failed: ${err.message}`;
@@ -194,9 +203,65 @@ function recomputeFromPhases() {
   els.ghostControl.hidden = !state.ghostAlign;
 
   renderPhaseChips();
-  renderReport();
+  renderSummary();
   renderTempo();
   renderFeedback();
+  renderReport();
+}
+
+// Strips the parenthetical so the benchmark badge reads e.g. "Justin Thomas".
+function shortName(name) {
+  return name.replace(/\s*\(.*\)\s*$/, "").trim();
+}
+
+const fmtRange = (name, r) => {
+  const f = (v) => formatMetricValue(name, v);
+  if (r.min != null && r.max != null) return `${f(r.min)} – ${f(r.max)}`;
+  if (r.max != null) return `≤ ${f(r.max)}`;
+  if (r.min != null) return `≥ ${f(r.min)}`;
+  return "";
+};
+
+// One-line reveal of the result cards after analysis (not on re-compute).
+function revealResults() {
+  for (const el of [els.summary, els.feedbackSection, els.report]) {
+    el.classList.remove("reveal");
+    void el.offsetWidth;
+    el.classList.add("reveal");
+  }
+}
+
+// Headline verdict: how many checkpoints match, and a plain-English read.
+function renderSummary() {
+  let total = 0;
+  let pass = 0;
+  for (const phase of ["address", "top", "impact"]) {
+    const lm = state.frames[state.phases[phase]]?.landmarks;
+    const phaseRef = state.ref.phases[phase];
+    if (!lm || !phaseRef) continue;
+    const grades = gradeMetrics(computeMetrics(lm, state.addressLm), phaseRef);
+    for (const k in grades) {
+      total++;
+      if (grades[k]) pass++;
+    }
+  }
+
+  const issues = buildFeedback(state.frames, state.phases, state.ref, tempoBenchmark())
+    .filter((i) => !i.good);
+  const n = issues.length;
+  const name = shortName(state.ref.name);
+
+  els.summaryHeadline.textContent =
+    n === 0 ? "Dialed in" :
+    n === 1 ? "One thing to sharpen" :
+    n === 2 ? "A couple of fixes" :
+    "Let's tighten it up";
+  els.summarySub.textContent =
+    n === 0
+      ? `Every checkpoint matches ${name}. Keep grooving it.`
+      : `${pass} of ${total} checkpoints match ${name}.`;
+  els.summaryScore.textContent = `${pass}/${total}`;
+  els.summary.hidden = false;
 }
 
 // The reference swing's tempo ratio measured by the same wrist-based
@@ -367,19 +432,10 @@ function updateActiveChip(i) {
   for (const c of state.chips) c.el.classList.toggle("active", c.el === active);
 }
 
+// Scorecard: each phase a group, each metric a row with a status dot, the
+// target window, and the player's value as a green/clay pill.
 function renderReport() {
-  const table = document.createElement("table");
-  table.className = "metrics";
-  table.innerHTML =
-    "<tr><th>Checkpoint</th><th>Metric</th><th>Target</th><th>Value</th></tr>";
-
-  const fmtRange = (name, r) => {
-    const f = (v) => formatMetricValue(name, v);
-    if (r.min != null && r.max != null) return `${f(r.min)} – ${f(r.max)}`;
-    if (r.max != null) return `≤ ${f(r.max)}`;
-    if (r.min != null) return `≥ ${f(r.min)}`;
-    return "";
-  };
+  els.metrics.innerHTML = "";
 
   for (const phase of ["address", "top", "impact"]) {
     const lm = state.frames[state.phases[phase]]?.landmarks;
@@ -388,22 +444,29 @@ function renderReport() {
 
     const metrics = computeMetrics(lm, state.addressLm);
     const grades = gradeMetrics(metrics, phaseRef);
+    const names = Object.keys(phaseRef).filter((n) => metrics[n] != null);
+    if (!names.length) continue;
 
-    for (const name of Object.keys(phaseRef)) {
-      if (metrics[name] == null) continue;
-      const row = document.createElement("tr");
-      const cls = grades[name] ? "value-good" : "value-bad";
+    const group = document.createElement("div");
+    group.className = "score-group";
+    const head = document.createElement("div");
+    head.className = "score-phase";
+    head.textContent = PHASE_LABELS[phase];
+    group.appendChild(head);
+
+    for (const name of names) {
+      const ok = grades[name];
+      const row = document.createElement("div");
+      row.className = "score-row";
       row.innerHTML =
-        `<td>${PHASE_LABELS[phase]}</td>` +
-        `<td>${METRIC_LABELS[name] ?? name}</td>` +
-        `<td class="target">${fmtRange(name, phaseRef[name])}</td>` +
-        `<td><span class="${cls}">${formatMetricValue(name, metrics[name])}</span></td>`;
-      table.appendChild(row);
+        `<span class="score-dot ${ok ? "good" : "bad"}"></span>` +
+        `<span class="score-metric">${METRIC_LABELS[name] ?? name}</span>` +
+        `<span class="score-target">${fmtRange(name, phaseRef[name])}</span>` +
+        `<span class="${ok ? "value-good" : "value-bad"}">${formatMetricValue(name, metrics[name])}</span>`;
+      group.appendChild(row);
     }
+    els.metrics.appendChild(group);
   }
-
-  els.metrics.innerHTML = "";
-  els.metrics.appendChild(table);
   els.report.hidden = false;
 }
 

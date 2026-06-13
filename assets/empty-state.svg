@@ -1,0 +1,21 @@
+<svg viewBox="0 0 320 240" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="An empty putting green with a flagstick">
+  <!-- topographic contour rings of the green -->
+  <ellipse cx="172" cy="158" rx="118" ry="52" stroke="#A9B0A3" stroke-width="1" opacity="0.22"/>
+  <ellipse cx="170" cy="156" rx="88" ry="39" stroke="#A9B0A3" stroke-width="1" opacity="0.32"/>
+  <ellipse cx="168" cy="154" rx="58" ry="26" stroke="#A9B0A3" stroke-width="1" opacity="0.45"/>
+  <ellipse cx="166" cy="152" rx="30" ry="14" stroke="#A9B0A3" stroke-width="1" opacity="0.6"/>
+
+  <!-- the hole -->
+  <ellipse cx="166" cy="152" rx="9" ry="4.2" fill="#0A0F0C" stroke="#C8A45A" stroke-width="1.4"/>
+
+  <!-- flagstick -->
+  <path d="M166 150V58" stroke="#C8A45A" stroke-width="2.4" stroke-linecap="round"/>
+  <!-- pennant -->
+  <path d="M166 60l32 9-32 9z" fill="none" stroke="#E3C57E" stroke-width="2.4" stroke-linejoin="round"/>
+
+  <!-- ball -->
+  <circle cx="70" cy="178" r="5.5" fill="none" stroke="#F3EFE6" stroke-width="1.8"/>
+
+  <!-- putt line, dashed sage, curving toward the hole -->
+  <path d="M75 175C103 170 133 161 160 153" stroke="#A9B0A3" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="1.5 7" opacity="0.75"/>
+</svg>

@@ -6,10 +6,12 @@
 import { LM, midHip, midShoulder, torsoLength, spineAngle } from "./metrics.js";
 import { BONES, BONE_TOLERANCE, boneDeviations } from "./ghost.js";
 
-const GOOD = "#2ecc71";
-const BAD = "#e74c3c";
-const NEUTRAL = "rgba(255, 255, 255, 0.55)";
-const GHOST = "rgba(91, 173, 255, 0.6)";
+// Tuned for legibility over green-grass / sky footage; aligned to the app's
+// palette (fairway / clay / bone / sky).
+const GOOD = "#46C47E";
+const BAD = "#E2693F";
+const NEUTRAL = "rgba(243, 239, 230, 0.6)";
+const GHOST = "rgba(125, 196, 255, 0.7)";
 
 function toPx(p, W, H) {
   return { x: p.x * W, y: p.y * H };
