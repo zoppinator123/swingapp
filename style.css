@@ -283,6 +283,43 @@ main {
   font-weight: 600;
 }
 
+#phase-chips.adjusting .phase-chip {
+  border-style: dashed;
+  border-color: var(--accent-2);
+}
+
+#adjust-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+#adjust {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+#adjust svg { width: 14px; height: 14px; }
+#adjust:hover { border-color: var(--border-strong); color: var(--text); }
+
+#adjust.active {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+  background: rgba(79, 140, 255, 0.1);
+}
+
+#adjust-hint { font-size: 12.5px; color: var(--muted); }
+
 /* --- Panel cards ------------------------------------------------------ */
 
 #panel {

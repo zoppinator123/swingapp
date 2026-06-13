@@ -61,7 +61,8 @@ for naming) and rerun the extraction step to fill it in.
 - [x] Ghost comparison overlay (JT's skeleton on your replay, time-matched,
       with per-limb green/red grading) — down-the-line only so far
 - [ ] Rotation metrics (shoulder/hip turn, X-factor) and tempo (3:1 ratio)
-- [ ] Manual checkpoint correction when auto-detection misses
+- [x] Manual checkpoint correction when auto-detection misses ("Adjust
+      checkpoints" under the timeline)
 - [ ] Native mobile app with in-app slow-mo capture and real-time feedback
 
 ## Known limitations

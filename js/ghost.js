@@ -89,6 +89,12 @@ export function createGhostTimeWarp(ghost, userFrames, userPhases) {
   const u = ANCHORS.map((p) => userPhases[p]);
   const g = ANCHORS.map((p) => ghost.phases[p]);
 
+  // While the user is hand-correcting checkpoints they can be momentarily
+  // out of order; fall back to the simple clamped mapping until they're not.
+  if (u.some((v, k) => k > 0 && v <= u[k - 1])) {
+    return (i) => ghostFrameIndex(ghost, userPhases, i);
+  }
+
   return (i) => {
     if (i <= u[0]) return g[0];
     for (let k = 0; k + 1 < ANCHORS.length; k++) {

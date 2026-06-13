@@ -19,6 +19,9 @@ const els = {
   scrubber: $("scrubber"),
   frameLabel: $("frame-label"),
   phaseChips: $("phase-chips"),
+  adjustRow: $("adjust-row"),
+  adjust: $("adjust"),
+  adjustHint: $("adjust-hint"),
   view: $("view"),
   file: $("file"),
   fileName: $("file-name"),
@@ -47,6 +50,7 @@ const state = {
   addressLm: null,
   current: 0,
   analyzing: false,
+  adjustMode: false,
 };
 
 const ctx = els.overlay.getContext("2d");
@@ -66,6 +70,8 @@ function loadFile(file) {
   state.ghostWarp = null;
   els.ghostControl.hidden = true;
   els.transport.hidden = true;
+  setAdjustMode(false);
+  els.adjustRow.hidden = true;
   els.report.hidden = true;
   els.feedbackSection.hidden = true;
   els.referenceInfo.hidden = true;
@@ -129,26 +135,13 @@ els.analyze.addEventListener("click", async () => {
     }
 
     state.ref = await loadReference(els.view.value);
-    state.addressLm = state.frames[state.phases.address]?.landmarks ?? null;
-
     state.ghost = await loadGhost(els.view.value);
-    const anchorLm = averagedLandmarks(state.phases.address) ?? state.addressLm;
-    state.ghostAlign =
-      state.ghost && anchorLm
-        ? createGhostAligner(state.ghost, anchorLm, els.overlay.width, els.overlay.height)
-        : null;
-    state.ghostWarp = state.ghostAlign
-      ? createGhostTimeWarp(state.ghost, state.frames, state.phases)
-      : null;
-    els.ghostControl.hidden = !state.ghostAlign;
 
     els.referenceName.textContent = state.ref.name;
     els.referenceInfo.hidden = false;
 
     setupTransport();
-    renderPhaseChips();
-    renderReport();
-    renderFeedback();
+    recomputeFromPhases();
     showFrame(state.phases.address);
 
     els.status.textContent =
@@ -179,10 +172,52 @@ function averagedLandmarks(center, radius = 2) {
   return n ? acc.map((p) => ({ x: p.x / n, y: p.y / n })) : null;
 }
 
+// Everything derived from the checkpoints — metric anchors, the ghost fit
+// and time warp, chips, report, feedback. Called after analysis and again
+// whenever the user moves a checkpoint.
+function recomputeFromPhases() {
+  state.addressLm = state.frames[state.phases.address]?.landmarks ?? null;
+
+  const anchorLm = averagedLandmarks(state.phases.address) ?? state.addressLm;
+  state.ghostAlign =
+    state.ghost && anchorLm
+      ? createGhostAligner(state.ghost, anchorLm, els.overlay.width, els.overlay.height)
+      : null;
+  state.ghostWarp = state.ghostAlign
+    ? createGhostTimeWarp(state.ghost, state.frames, state.phases)
+    : null;
+  els.ghostControl.hidden = !state.ghostAlign;
+
+  renderPhaseChips();
+  renderReport();
+  renderFeedback();
+}
+
+// --- Checkpoint adjustment ---------------------------------------------------
+
+function setAdjustMode(on) {
+  state.adjustMode = on;
+  els.adjust.classList.toggle("active", on);
+  els.adjustHint.hidden = !on;
+  els.phaseChips.classList.toggle("adjusting", on);
+  if (state.phases) renderPhaseChips();
+}
+
+els.adjust.addEventListener("click", () => setAdjustMode(!state.adjustMode));
+
+function setPhase(phase, i) {
+  if (!state.frames[i]) return;
+  state.phases[phase] = i;
+  recomputeFromPhases();
+  drawFrame(state.current);
+  els.status.textContent = `${PHASE_LABELS[phase]} moved to frame ${i + 1} — report and ghost updated.`;
+}
+
 // --- Playback & overlay ----------------------------------------------------
 
 function setupTransport() {
   els.transport.hidden = false;
+  els.adjustRow.hidden = false;
   els.scrubber.max = state.frames.length - 1;
   els.scrubber.value = 0;
 }
@@ -279,10 +314,11 @@ function renderPhaseChips() {
     if (i == null) continue;
     const chip = document.createElement("button");
     chip.className = "phase-chip";
-    chip.textContent = label;
+    chip.textContent = state.adjustMode ? `${label} · ${i + 1}` : label;
     chip.addEventListener("click", () => {
       els.video.pause();
-      showFrame(i);
+      if (state.adjustMode) setPhase(phase, state.current);
+      else showFrame(i);
     });
     els.phaseChips.appendChild(chip);
     state.chips.push({ idx: i, el: chip });
