@@ -35,7 +35,10 @@ export async function analyzeVideo(video, landmarker, { fps = 30, onProgress } =
   const dt = 1 / fps;
   let ts = 0; // detectForVideo requires a monotonically increasing ms timestamp
 
-  for (let t = 0; t < video.duration; t += dt) {
+  // Guard against a non-finite duration (unrepaired MediaRecorder WebM) so the
+  // loop always terminates.
+  const duration = Number.isFinite(video.duration) ? video.duration : 0;
+  for (let t = 0; t < duration; t += dt) {
     await seek(video, t);
     ts += dt * 1000;
     const result = landmarker.detectForVideo(video, ts);

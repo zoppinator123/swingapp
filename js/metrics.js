@@ -75,6 +75,22 @@ function lateralDrift(point, addressPoint, addressTorso) {
   return Math.abs(point.x - addressPoint.x) / addressTorso;
 }
 
+// Smallest absolute difference between two angles, in [0, 180] degrees.
+function angleDiff(a, b) {
+  let d = Math.abs(a - b) % 360;
+  if (d > 180) d = 360 - d;
+  return d;
+}
+
+// Yaw of a body line (a→b) in the camera's top-down plane, using BlazePose's
+// per-landmark depth estimate (z, ~same scale as x). Degrees, or null when
+// the model gave no depth. Rotation is reported as the change in this yaw
+// from address, so the (noisy) absolute origin/scale of z largely cancels.
+function lineYaw(a, b) {
+  if (a.z == null || b.z == null) return null;
+  return (Math.atan2(b.z - a.z, b.x - a.x) * 180) / Math.PI;
+}
+
 // All metrics for one frame. addressLm anchors the drift/delta metrics and
 // may be null before analysis has identified the address frame.
 export function computeMetrics(lm, addressLm) {
@@ -89,6 +105,19 @@ export function computeMetrics(lm, addressLm) {
     out.headSway = lateralDrift(lm[LM.NOSE], addressLm[LM.NOSE], torso);
     out.hipSway = lateralDrift(midHip(lm), midHip(addressLm), torso);
     out.spineAngleDelta = out.spineAngle - spineAngle(addressLm);
+
+    // Rotation (estimated from depth): how far the shoulder / hip lines have
+    // turned in the horizontal plane since address, and the gap between them
+    // (X-factor). Only when the pose model supplied depth.
+    const shNow = lineYaw(lm[LM.L_SHOULDER], lm[LM.R_SHOULDER]);
+    const shAddr = lineYaw(addressLm[LM.L_SHOULDER], addressLm[LM.R_SHOULDER]);
+    const hipNow = lineYaw(lm[LM.L_HIP], lm[LM.R_HIP]);
+    const hipAddr = lineYaw(addressLm[LM.L_HIP], addressLm[LM.R_HIP]);
+    if (shNow != null && shAddr != null) out.shoulderTurn = angleDiff(shNow, shAddr);
+    if (hipNow != null && hipAddr != null) out.hipTurn = angleDiff(hipNow, hipAddr);
+    if (out.shoulderTurn != null && out.hipTurn != null) {
+      out.xFactor = Math.abs(out.shoulderTurn - out.hipTurn);
+    }
   }
 
   return out;
@@ -117,6 +146,9 @@ export const METRIC_LABELS = {
   shoulderTilt: "Shoulder slope",
   headSway: "Head slide",
   hipSway: "Hip slide",
+  shoulderTurn: "Shoulder turn",
+  hipTurn: "Hip turn",
+  xFactor: "X-factor (shoulders − hips)",
 };
 
 // Human-readable metric values: degrees for angles, "% of torso length" for

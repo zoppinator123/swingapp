@@ -89,6 +89,32 @@ export function buildFeedback(frames, phases, ref, tempoBenchmark = 1.9) {
     });
   }
 
+  if (top) {
+    const r = ref.phases.top;
+    if (top.grades.shoulderTurn === false && top.metrics.shoulderTurn < (r.shoulderTurn?.min ?? 0)) {
+      items.push({
+        title: "Turn your shoulders more",
+        text:
+          `At the top your shoulders had turned about ${deg(top.metrics.shoulderTurn)} from address — ` +
+          `short of the reference's full coil (≈ ${r.shoulderTurn.min}° measured the same way). Feel your ` +
+          `back to the target and your lead shoulder behind the ball; a fuller turn stores more power. ` +
+          `(Turn is depth-estimated from one camera, so treat it as a guide.)`,
+        phase: "top",
+      });
+    }
+    if (top.grades.xFactor === false && top.metrics.xFactor < (r.xFactor?.min ?? 0)) {
+      items.push({
+        title: "Create more separation (X-factor)",
+        text:
+          `Your shoulders and hips turned by a similar amount — about ${deg(top.metrics.xFactor)} of ` +
+          `separation, vs a tour gap near ${r.xFactor.min}–${r.xFactor.max}°. Turn your shoulders fully ` +
+          `while your hips quietly resist, like coiling a spring; that stretch is a big source of ` +
+          `clubhead speed.`,
+        phase: "top",
+      });
+    }
+  }
+
   if (impact) {
     const { metrics, grades } = impact;
     if (grades.spineAngleDelta === false && metrics.spineAngleDelta < 0) {

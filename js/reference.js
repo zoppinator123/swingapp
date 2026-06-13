@@ -19,6 +19,11 @@ const DEFAULTS = {
       top: {
         headSway: { max: 0.18 },
         spineAngleDelta: { min: -8, max: 8 },
+        // Depth-estimated shoulder turn (relative to address). From down-the-
+        // line the hip line is too foreshortened to read, so hip turn /
+        // X-factor are graded only in the face-on view. The floor is forgiving
+        // because the depth estimate varies with clip quality.
+        shoulderTurn: { min: 70 },
       },
       impact: {
         // Losing more than ~6 degrees of forward bend at impact reads as
@@ -38,6 +43,10 @@ const DEFAULTS = {
       top: {
         headSway: { max: 0.25 },
         hipSway: { max: 0.18 },
+        // Depth-estimated; wide bands since these are guides, not exact.
+        shoulderTurn: { min: 60, max: 130 },
+        hipTurn: { min: 20, max: 75 },
+        xFactor: { min: 20, max: 80 },
       },
       impact: {
         headSway: { max: 0.25 },

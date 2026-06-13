@@ -27,6 +27,11 @@ const els = {
   view: $("view"),
   file: $("file"),
   fileName: $("file-name"),
+  record: $("record"),
+  captureBar: $("capture-bar"),
+  captureRecord: $("capture-record"),
+  captureCancel: $("capture-cancel"),
+  captureTimer: $("capture-timer"),
   analyze: $("analyze"),
   setup: $("setup"),
   newSwing: $("new-swing"),
@@ -67,6 +72,16 @@ const state = {
   adjustMode: false,
   rate: 1,
   loopSwing: false,
+  // camera capture
+  stream: null,
+  recorder: null,
+  chunks: [],
+  recording: false,
+  capturing: false,
+  discardRecording: false,
+  captureStart: 0,
+  captureRaf: 0,
+  captureAutoStop: 0,
 };
 
 const ctx = els.overlay.getContext("2d");
@@ -75,8 +90,14 @@ const ctx = els.overlay.getContext("2d");
 
 function loadFile(file) {
   if (!file || !file.type.startsWith("video/")) return;
-  els.video.src = URL.createObjectURL(file);
-  els.fileName.textContent = file.name;
+  loadSource(file, file.name);
+}
+
+// Shared load path for both a chosen File and a recorded Blob.
+function loadSource(src, name) {
+  els.video.srcObject = null;
+  els.video.src = URL.createObjectURL(src);
+  els.fileName.textContent = name;
   els.dropHint.hidden = true;
   state.frames = [];
   state.phases = null;
@@ -108,6 +129,128 @@ els.newSwing.addEventListener("click", () => {
   els.file.click();
 });
 
+// --- Camera capture --------------------------------------------------------
+
+const captureSupported =
+  !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== "undefined";
+if (captureSupported) els.record.hidden = false;
+
+const MAX_CAPTURE_MS = 20000;
+
+function pickMimeType() {
+  const types = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"];
+  return types.find((t) => MediaRecorder.isTypeSupported?.(t)) || "";
+}
+
+async function enterCapture() {
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
+  } catch {
+    els.status.textContent =
+      "Couldn't open the camera — check permissions, or choose a video file instead.";
+    return;
+  }
+  state.stream = stream;
+  state.capturing = true;
+  // Clear any prior analysis and show the live preview.
+  els.summary.hidden = els.feedbackSection.hidden = els.report.hidden = true;
+  els.transport.hidden = els.adjustRow.hidden = els.overlayLegend.hidden = true;
+  els.newSwing.hidden = true;
+  els.phaseChips.innerHTML = "";
+  els.analyze.disabled = true;
+  els.dropHint.hidden = true;
+  els.video.pause();
+  els.video.removeAttribute("src");
+  els.video.srcObject = stream;
+  els.video.muted = true;
+  els.video.play().catch(() => {});
+  els.captureRecord.classList.remove("recording");
+  els.captureBar.classList.remove("live");
+  els.captureTimer.textContent = "0.0s";
+  els.captureBar.hidden = false;
+}
+
+function toggleRecord() {
+  if (!state.stream) return;
+  if (state.recording) return stopRecording();
+  const mimeType = pickMimeType();
+  state.chunks = [];
+  state.discardRecording = false;
+  try {
+    state.recorder = mimeType
+      ? new MediaRecorder(state.stream, { mimeType })
+      : new MediaRecorder(state.stream);
+  } catch {
+    state.recorder = new MediaRecorder(state.stream);
+  }
+  state.recorder.ondataavailable = (e) => { if (e.data?.size) state.chunks.push(e.data); };
+  state.recorder.onstop = finalizeRecording;
+  state.recorder.start();
+  state.recording = true;
+  els.captureRecord.classList.add("recording");
+  els.captureRecord.setAttribute("aria-label", "Stop recording");
+  els.captureBar.classList.add("live");
+  state.captureStart = performance.now();
+  tickTimer();
+  state.captureAutoStop = setTimeout(() => state.recording && stopRecording(), MAX_CAPTURE_MS);
+}
+
+function tickTimer() {
+  els.captureTimer.textContent =
+    ((performance.now() - state.captureStart) / 1000).toFixed(1) + "s";
+  if (state.recording) state.captureRaf = requestAnimationFrame(tickTimer);
+}
+
+function stopRecording() {
+  if (!state.recording) return;
+  state.recording = false;
+  clearTimeout(state.captureAutoStop);
+  cancelAnimationFrame(state.captureRaf);
+  els.captureRecord.classList.remove("recording");
+  els.captureRecord.setAttribute("aria-label", "Start recording");
+  els.captureBar.classList.remove("live");
+  try { state.recorder.stop(); } catch {}
+}
+
+function finalizeRecording() {
+  const type = state.recorder?.mimeType || "video/webm";
+  const blob = new Blob(state.chunks, { type });
+  stopStream();
+  els.captureBar.hidden = true;
+  state.capturing = false;
+  if (state.discardRecording || !blob.size) {
+    if (!els.video.getAttribute("src")) els.dropHint.hidden = false;
+    return;
+  }
+  loadSource(blob, "Recorded swing");
+  els.status.textContent = "Recorded — tap Analyze swing.";
+}
+
+function stopStream() {
+  if (state.stream) {
+    state.stream.getTracks().forEach((t) => t.stop());
+    state.stream = null;
+  }
+  els.video.srcObject = null;
+}
+
+function cancelCapture() {
+  state.discardRecording = true;
+  if (state.recording) return stopRecording(); // onstop → finalize honors discard
+  stopStream();
+  els.captureBar.hidden = true;
+  state.capturing = false;
+  if (!els.video.getAttribute("src")) els.dropHint.hidden = false;
+}
+
+els.record.addEventListener("click", enterCapture);
+els.captureRecord.addEventListener("click", toggleRecord);
+els.captureCancel.addEventListener("click", cancelCapture);
+
 els.videoWrap.addEventListener("dragover", (e) => {
   e.preventDefault();
   els.videoWrap.classList.add("dragover");
@@ -128,11 +271,33 @@ els.video.addEventListener("loadedmetadata", () => {
   // the height so tall clips don't push the controls off screen.
   els.videoWrap.style.aspectRatio = `${els.video.videoWidth} / ${els.video.videoHeight}`;
   els.video.playbackRate = state.rate; // playbackRate resets on a new source
+  if (state.capturing) return; // live camera preview — not a loaded clip
   els.analyze.disabled = false;
   els.status.textContent = "Video loaded. Pick the camera view, then Analyze.";
 });
 
 // --- Analysis --------------------------------------------------------------
+
+// MediaRecorder WebM has no duration in its header, so video.duration is
+// Infinity until a seek past the end forces the browser to compute it.
+// Returns the finite duration (seconds) or null if it can't be determined.
+function ensureFiniteDuration(video) {
+  const good = () => Number.isFinite(video.duration) && video.duration > 0;
+  if (good()) return Promise.resolve(video.duration);
+  return new Promise((resolve) => {
+    const cleanup = () => {
+      video.removeEventListener("durationchange", onChange);
+      clearTimeout(timer);
+    };
+    const onChange = () => { if (good()) { cleanup(); resolve(); } };
+    const timer = setTimeout(() => { cleanup(); resolve(); }, 3000);
+    video.addEventListener("durationchange", onChange);
+    try { video.currentTime = 1e101; } catch { cleanup(); resolve(); }
+  }).then(() => {
+    try { video.currentTime = 0; } catch {}
+    return good() ? video.duration : null;
+  });
+}
 
 els.analyze.addEventListener("click", async () => {
   if (state.analyzing) return;
@@ -145,6 +310,15 @@ els.analyze.addEventListener("click", async () => {
     if (!state.landmarker) {
       els.status.textContent = "Loading pose model (first run only)…";
       state.landmarker = await createLandmarker();
+    }
+
+    // Recorded WebM blobs report duration: Infinity until forced — repair it
+    // so the frame-extraction loop terminates.
+    const dur = await ensureFiniteDuration(els.video);
+    if (!dur) {
+      els.status.textContent =
+        "Couldn't read this clip's length — try a different file or re-record.";
+      return;
     }
 
     els.status.textContent = "Extracting pose frame by frame…";
