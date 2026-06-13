@@ -41,7 +41,10 @@ entirely in your browser — your swing video never leaves your device.
    address/top/impact/finish land on yours, scaled to your body and mirrored
    for handedness — and colors each limb segment of your skeleton green/red
    by how far it strays from his matching segment at that moment.
-6. Generates plain-language feedback (e.g. early extension, head sway).
+6. Measures swing tempo (backswing:downswing ratio) and benchmarks it
+   against the reference swing measured the same wrist-based way.
+7. Generates plain-language feedback (e.g. early extension, head sway, rushed
+   tempo); tap any note to jump the replay to the frame it describes.
 
 ## The Justin Thomas reference profile
 
@@ -60,7 +63,10 @@ for naming) and rerun the extraction step to fill it in.
       iron; face-on footage still wanted)
 - [x] Ghost comparison overlay (JT's skeleton on your replay, time-matched,
       with per-limb green/red grading) — down-the-line only so far
-- [ ] Rotation metrics (shoulder/hip turn, X-factor) and tempo (3:1 ratio)
+- [x] Swing tempo (backswing:downswing ratio, benchmarked against the
+      reference measured the same wrist-based way)
+- [x] Tap a feedback note to jump the replay to the frame it's about
+- [ ] Rotation metrics (shoulder/hip turn, X-factor)
 - [x] Manual checkpoint correction when auto-detection misses ("Adjust
       checkpoints" under the timeline)
 - [ ] Native mobile app with in-app slow-mo capture and real-time feedback

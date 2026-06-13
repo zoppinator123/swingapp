@@ -541,6 +541,19 @@ table.metrics td:last-child, table.metrics th:last-child { text-align: right; }
 
 .target { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
+/* --- Tempo ------------------------------------------------------------ */
+
+#tempo-ratio {
+  font-size: 36px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+#tempo-ratio .unit { font-size: 20px; color: var(--muted); font-weight: 600; }
+#tempo-ratio.good #tempo-value { color: var(--good); }
+#tempo-ratio.bad #tempo-value { color: var(--bad); }
+
 /* --- Feedback --------------------------------------------------------- */
 
 #feedback {
@@ -573,6 +586,17 @@ table.metrics td:last-child, table.metrics th:last-child { text-align: right; }
 
 #feedback li.good { border-left-color: var(--good); }
 #feedback li.good strong { color: var(--good); }
+
+#feedback li.jumpable { cursor: pointer; transition: border-color 0.15s; }
+#feedback li.jumpable:hover { border-color: var(--accent-2); }
+
+.jump {
+  display: block;
+  margin-top: 7px;
+  font-size: 12.5px;
+  color: var(--accent-2);
+  font-weight: 600;
+}
 
 /* --- Footer ----------------------------------------------------------- */
 

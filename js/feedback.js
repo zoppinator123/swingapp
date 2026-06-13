@@ -1,14 +1,17 @@
 // Turns graded checkpoint metrics into plain-language coaching feedback.
-// Each item: { title, text, good? } — a short name for the issue, then what
-// happened, why it matters, and one thing to feel or practice.
+// Each item: { title, text, phase?, good? } — a short name for the issue,
+// what happened, why it matters, and one thing to feel or practice. phase
+// names the checkpoint the finding refers to so the UI can jump there.
 
 import { computeMetrics, gradeMetrics } from "./metrics.js";
+import { swingTempo, tempoWindow } from "./phases.js";
 
 const deg = (v, digits = 0) => `${v.toFixed(digits)}°`;
 const pct = (v) => `${Math.round(v * 100)}%`;
 
-// Returns [{ title, text, good }] — one entry per finding.
-export function buildFeedback(frames, phases, ref) {
+// tempoBenchmark: the reference swing's ratio measured by the same wrist-
+// based pipeline (JT's down-the-line iron measures ~1.9:1).
+export function buildFeedback(frames, phases, ref, tempoBenchmark = 1.9) {
   const items = [];
   const addressLm = frames[phases.address]?.landmarks;
   if (!addressLm || !ref) return items;
@@ -36,6 +39,7 @@ export function buildFeedback(frames, phases, ref) {
             `where the reference window is ${range.min}–${range.max}°. ` +
             `Push your hips back (like you're closing a car door behind you) and let your chest ` +
             `lean toward the ball until your arms hang straight down from your shoulders.`,
+          phase: "address",
         });
       } else {
         items.push({
@@ -44,6 +48,7 @@ export function buildFeedback(frames, phases, ref) {
             `You're bent over too far — ${deg(metrics.spineAngle)} of forward tilt, ` +
             `vs the ${range.min}–${range.max}° window. Keep the tilt, but get it by pushing ` +
             `your hips back: lift your chest and flatten your back instead of slumping your shoulders.`,
+          phase: "address",
         });
       }
     }
@@ -57,6 +62,7 @@ export function buildFeedback(frames, phases, ref) {
             `dead straight and the reference sets up at ${range.min}–${range.max}°. ` +
             `Sink into an athletic stance, like a shortstop waiting on a ground ball: ` +
             `a small knee bend lets your hips turn instead of your whole body lifting up.`,
+          phase: "address",
         });
       } else {
         items.push({
@@ -65,6 +71,7 @@ export function buildFeedback(frames, phases, ref) {
             `Your knees are bent more than the reference — knee angle ${deg(metrics.kneeFlex)} ` +
             `vs the ${range.min}–${range.max}° window (180° is dead straight). Stand up a touch: ` +
             `squatting too much at setup usually makes the body rise back up mid-swing.`,
+          phase: "address",
         });
       }
     }
@@ -78,6 +85,7 @@ export function buildFeedback(frames, phases, ref) {
         `torso length — the reference keeps it under ${pct(ref.phases.top.headSway.max)}. ` +
         `Feel like you're turning your chest around a head that stays put. A steady head makes it ` +
         `far easier to get the club back to the ball the same way every time.`,
+      phase: "top",
     });
   }
 
@@ -92,6 +100,7 @@ export function buildFeedback(frames, phases, ref) {
           `This is the classic cause of thin shots and misses to the right. ` +
           `Practice feel: keep your back pockets against an imaginary wall behind you as you swing ` +
           `down, and keep your chest pointing at the ball through the strike.`,
+        phase: "impact",
       });
     } else if (grades.spineAngleDelta === false) {
       items.push({
@@ -101,6 +110,7 @@ export function buildFeedback(frames, phases, ref) {
           `crouching into the strike, which usually shows up as heavy, fat contact. ` +
           `Feel taller through impact: let your lead leg straighten and your hips turn open ` +
           `instead of dropping your chest at the ball.`,
+        phase: "impact",
       });
     }
     if (grades.headSway === false) {
@@ -111,6 +121,7 @@ export function buildFeedback(frames, phases, ref) {
           `impact (reference: under ${pct(ref.phases.impact.headSway.max)}). ` +
           `Keep your eyes locked on the ball until well after contact — let your head come up ` +
           `with the follow-through, not before it.`,
+        phase: "impact",
       });
     }
     if (grades.hipSway === false) {
@@ -121,6 +132,35 @@ export function buildFeedback(frames, phases, ref) {
           `impact (reference: under ${pct(ref.phases.impact.hipSway.max)}). A small bump toward ` +
           `the target is fine — after that, feel your belt buckle rotate to face the target ` +
           `rather than your whole body drifting.`,
+        phase: "impact",
+      });
+    }
+  }
+
+  const tempo = swingTempo(frames, phases);
+  if (tempo) {
+    const window = tempoWindow(tempoBenchmark);
+    const r = tempo.ratio.toFixed(1);
+    const jt = tempoBenchmark.toFixed(1);
+    if (tempo.ratio < window.min) {
+      items.push({
+        title: "Your backswing is rushed",
+        text:
+          `Your backswing-to-downswing tempo is ${r} : 1 — the reference swing measures ` +
+          `${jt} : 1 the same way. You're snatching the club back. Give yourself time to finish ` +
+          `the turn: count an unhurried "one-two" going back and let "three" be the strike. ` +
+          `Clubhead speed comes from the sequence, not from hurrying the start.`,
+        phase: "top",
+      });
+    } else if (tempo.ratio > window.max) {
+      items.push({
+        title: "Long, stalling backswing",
+        text:
+          `Your backswing-to-downswing tempo is ${r} : 1 vs the reference's ${jt} : 1 — the ` +
+          `club takes a long time to get to the top relative to the strike. That usually means ` +
+          `an overly careful takeaway or a pause up top that breaks the chain. Keep the backswing ` +
+          `one continuous motion and commit: smooth back, athletic through.`,
+        phase: "top",
       });
     }
   }

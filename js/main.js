@@ -1,5 +1,5 @@
 import { createLandmarker, analyzeVideo } from "./pose.js";
-import { detectPhases } from "./phases.js";
+import { detectPhases, swingTempo, tempoWindow } from "./phases.js";
 import { computeMetrics, gradeMetrics, METRIC_LABELS, formatMetricValue } from "./metrics.js";
 import { loadReference, PHASE_LABELS } from "./reference.js";
 import { loadGhost, createGhostTimeWarp, createGhostAligner } from "./ghost.js";
@@ -34,6 +34,10 @@ const els = {
   ghostToggle: $("ghost-toggle"),
   report: $("report"),
   metrics: $("metrics"),
+  tempoSection: $("tempo-section"),
+  tempoRatio: $("tempo-ratio"),
+  tempoValue: $("tempo-value"),
+  tempoDetail: $("tempo-detail"),
   feedbackSection: $("feedback-section"),
   feedback: $("feedback"),
 };
@@ -73,6 +77,7 @@ function loadFile(file) {
   setAdjustMode(false);
   els.adjustRow.hidden = true;
   els.report.hidden = true;
+  els.tempoSection.hidden = true;
   els.feedbackSection.hidden = true;
   els.referenceInfo.hidden = true;
   els.phaseChips.innerHTML = "";
@@ -190,7 +195,36 @@ function recomputeFromPhases() {
 
   renderPhaseChips();
   renderReport();
+  renderTempo();
   renderFeedback();
+}
+
+// The reference swing's tempo ratio measured by the same wrist-based
+// pipeline as the player's (frame indices; the frame rate cancels out).
+function tempoBenchmark() {
+  if (state.ghost?.phases) {
+    const { address, top, impact } = state.ghost.phases;
+    if (top > address && impact > top) return (top - address) / (impact - top);
+  }
+  return 1.9;
+}
+
+function renderTempo() {
+  const tempo = swingTempo(state.frames, state.phases);
+  if (!tempo) {
+    els.tempoSection.hidden = true;
+    return;
+  }
+  const benchmark = tempoBenchmark();
+  const window = tempoWindow(benchmark);
+  const ok = tempo.ratio >= window.min && tempo.ratio <= window.max;
+  els.tempoValue.textContent = tempo.ratio.toFixed(1);
+  els.tempoRatio.className = ok ? "good" : "bad";
+  els.tempoDetail.textContent =
+    `Backswing ${tempo.backswing.toFixed(2)} s, downswing ${tempo.downswing.toFixed(2)} s ` +
+    `(video time). Reference: ${benchmark.toFixed(1)} : 1 measured the same wrist-based way — ` +
+    `the classic club-based number reads ~3 : 1.`;
+  els.tempoSection.hidden = false;
 }
 
 // --- Checkpoint adjustment ---------------------------------------------------
@@ -374,7 +408,7 @@ function renderReport() {
 }
 
 function renderFeedback() {
-  const items = buildFeedback(state.frames, state.phases, state.ref);
+  const items = buildFeedback(state.frames, state.phases, state.ref, tempoBenchmark());
   els.feedback.innerHTML = "";
   for (const item of items) {
     const li = document.createElement("li");
@@ -384,6 +418,18 @@ function renderFeedback() {
     body.textContent = item.text;
     li.append(title, body);
     if (item.good) li.className = "good";
+    if (item.phase != null && state.phases[item.phase] != null) {
+      li.classList.add("jumpable");
+      const jump = document.createElement("span");
+      jump.className = "jump";
+      jump.textContent = `Show me — jump to ${PHASE_LABELS[item.phase].toLowerCase()} ▸`;
+      li.appendChild(jump);
+      li.addEventListener("click", () => {
+        els.video.pause();
+        showFrame(state.phases[item.phase]);
+        els.videoWrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    }
     els.feedback.appendChild(li);
   }
   els.feedbackSection.hidden = false;

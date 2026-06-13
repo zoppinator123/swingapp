@@ -100,3 +100,26 @@ export function detectPhases(frames) {
 
   return { address, top, impact, finish };
 }
+
+// Swing tempo from the checkpoint timestamps: backswing (address→top) vs
+// downswing (top→impact), in video seconds. The ratio survives slow-motion
+// clips since both phases are scaled equally. Note this is wrist-based —
+// the wrists peak before the club finishes setting, so ratios read lower
+// than the classic club-based "3:1" (Justin Thomas measures ~1.9:1 through
+// this same pipeline).
+export function swingTempo(frames, phases) {
+  const t = (p) => frames[phases[p]]?.t;
+  const address = t("address");
+  const top = t("top");
+  const impact = t("impact");
+  if (address == null || top == null || impact == null) return null;
+  const backswing = top - address;
+  const downswing = impact - top;
+  if (backswing <= 0 || downswing <= 0) return null;
+  return { backswing, downswing, ratio: backswing / downswing };
+}
+
+// Acceptable band around a benchmark tempo ratio.
+export function tempoWindow(benchmark) {
+  return { min: benchmark * 0.7, max: benchmark * 1.45 };
+}
