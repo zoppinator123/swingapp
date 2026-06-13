@@ -68,6 +68,17 @@
           </button>
           <span id="frame-label">0 / 0</span>
         </div>
+        <div class="transport-tools">
+          <div class="speed" id="speed" role="group" aria-label="Playback speed">
+            <button data-rate="0.25">0.25×</button>
+            <button data-rate="0.5">0.5×</button>
+            <button data-rate="1" class="active">1×</button>
+          </div>
+          <button id="loop" class="tool-toggle" aria-pressed="false" title="Loop the swing">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.7-5.6L20 8m0 0V3m0 5h-5M20 12a8 8 0 0 1-13.7 5.6L4 16m0 0v5m0-5h5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Loop swing
+          </button>
+        </div>
       </div>
 
       <div id="phase-chips"></div>
@@ -88,13 +99,44 @@
     </section>
 
     <aside id="panel">
-      <section class="card deck">
+      <section class="card verdict" id="summary" hidden>
+        <p class="kicker">Your swing</p>
+        <h2 class="display" id="summary-headline">—</h2>
+        <p class="muted" id="summary-sub"></p>
+        <div class="stat-strip">
+          <div class="stat">
+            <span class="stat-num" id="summary-score">–</span>
+            <span class="stat-label">checkpoints matched</span>
+          </div>
+          <div class="stat" id="tempo-section">
+            <span class="stat-num" id="tempo-ratio"><span id="tempo-value">–</span><span class="unit"> : 1</span></span>
+            <span class="stat-label">tempo</span>
+          </div>
+        </div>
+        <p class="micro muted" id="tempo-detail"></p>
+      </section>
+
+      <section class="card" id="feedback-section" hidden>
+        <h2 class="card-title">What to work on</h2>
+        <p class="micro muted feedback-hint" id="feedback-hint" hidden>Tap a note to jump to that moment in your swing.</p>
+        <ul id="feedback"></ul>
+      </section>
+
+      <details class="card details" id="report" hidden>
+        <summary class="card-title">
+          Checkpoint detail
+          <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </summary>
+        <div id="metrics"></div>
+      </details>
+
+      <section class="card deck" id="setup">
         <div class="control">
           <label for="view">Camera view</label>
           <div class="select-wrap">
             <select id="view">
-              <option value="down-the-line">Down the line — behind, toward the target</option>
-              <option value="face-on">Face on — chest toward the camera</option>
+              <option value="down-the-line">Down the line (behind the target)</option>
+              <option value="face-on">Face on (facing the camera)</option>
             </select>
             <svg class="select-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
@@ -117,35 +159,10 @@
         <p id="status" class="muted" role="status"></p>
       </section>
 
-      <section class="card verdict" id="summary" hidden>
-        <p class="kicker">Your swing</p>
-        <h2 class="display" id="summary-headline">—</h2>
-        <p class="muted" id="summary-sub"></p>
-        <div class="stat-strip">
-          <div class="stat">
-            <span class="stat-num" id="summary-score">–</span>
-            <span class="stat-label">checkpoints matched</span>
-          </div>
-          <div class="stat" id="tempo-section">
-            <span class="stat-num" id="tempo-ratio"><span id="tempo-value">–</span><span class="unit"> : 1</span></span>
-            <span class="stat-label">tempo</span>
-          </div>
-        </div>
-        <p class="micro muted" id="tempo-detail"></p>
-      </section>
-
-      <section class="card" id="feedback-section" hidden>
-        <h2 class="card-title">What to work on</h2>
-        <ul id="feedback"></ul>
-      </section>
-
-      <details class="card details" id="report" hidden>
-        <summary class="card-title">
-          Checkpoint detail
-          <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </summary>
-        <div id="metrics"></div>
-      </details>
+      <button id="new-swing" class="button button-secondary" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Analyze another swing
+      </button>
     </aside>
   </main>
 

@@ -16,6 +16,8 @@ const els = {
   play: $("play"),
   prev: $("prev"),
   next: $("next"),
+  speed: $("speed"),
+  loop: $("loop"),
   scrubber: $("scrubber"),
   frameLabel: $("frame-label"),
   phaseChips: $("phase-chips"),
@@ -26,6 +28,8 @@ const els = {
   file: $("file"),
   fileName: $("file-name"),
   analyze: $("analyze"),
+  setup: $("setup"),
+  newSwing: $("new-swing"),
   progress: $("progress"),
   status: $("status"),
   referenceInfo: $("reference-info"),
@@ -44,6 +48,7 @@ const els = {
   tempoValue: $("tempo-value"),
   tempoDetail: $("tempo-detail"),
   feedbackSection: $("feedback-section"),
+  feedbackHint: $("feedback-hint"),
   feedback: $("feedback"),
 };
 
@@ -60,6 +65,8 @@ const state = {
   current: 0,
   analyzing: false,
   adjustMode: false,
+  rate: 1,
+  loopSwing: false,
 };
 
 const ctx = els.overlay.getContext("2d");
@@ -87,6 +94,8 @@ function loadFile(file) {
   els.referenceInfo.hidden = true;
   els.summary.hidden = true;
   els.overlayLegend.hidden = true;
+  els.setup.hidden = false;
+  els.newSwing.hidden = true;
   els.phaseChips.innerHTML = "";
   state.chips = [];
   ctx.clearRect(0, 0, els.overlay.width, els.overlay.height);
@@ -94,6 +103,7 @@ function loadFile(file) {
 }
 
 els.file.addEventListener("change", () => loadFile(els.file.files[0]));
+els.newSwing.addEventListener("click", () => els.file.click());
 
 els.videoWrap.addEventListener("dragover", (e) => {
   e.preventDefault();
@@ -114,6 +124,7 @@ els.video.addEventListener("loadedmetadata", () => {
   // Let the stage hug the clip (portrait phone videos especially); CSS caps
   // the height so tall clips don't push the controls off screen.
   els.videoWrap.style.aspectRatio = `${els.video.videoWidth} / ${els.video.videoHeight}`;
+  els.video.playbackRate = state.rate; // playbackRate resets on a new source
   els.analyze.disabled = false;
   els.status.textContent = "Video loaded. Pick the camera view, then Analyze.";
 });
@@ -156,10 +167,11 @@ els.analyze.addEventListener("click", async () => {
     setupTransport();
     recomputeFromPhases();
     showFrame(state.phases.address);
-    revealResults();
 
-    els.status.textContent =
-      "Tap a coaching note to jump to that frame, or scrub the timeline yourself.";
+    els.setup.hidden = true;
+    els.newSwing.hidden = false;
+    els.status.textContent = "";
+    revealResults();
   } catch (err) {
     console.error(err);
     els.status.textContent = `Analysis failed: ${err.message}`;
@@ -261,6 +273,7 @@ function renderSummary() {
       ? `Every checkpoint matches ${name}. Keep grooving it.`
       : `${pass} of ${total} checkpoints match ${name}.`;
   els.summaryScore.textContent = `${pass}/${total}`;
+  els.summaryScore.classList.toggle("good", total > 0 && pass === total);
   els.summary.hidden = false;
 }
 
@@ -390,10 +403,70 @@ els.play.addEventListener("click", () => {
 els.ghostToggle.addEventListener("change", () => drawFrame(state.current));
 
 els.video.addEventListener("pause", () => els.play.classList.remove("playing"));
-els.video.addEventListener("ended", () => els.play.classList.remove("playing"));
+els.video.addEventListener("ended", () => {
+  if (state.loopSwing && state.phases) {
+    els.video.currentTime = state.frames[state.phases.address]?.t ?? 0;
+    els.video.play();
+  } else {
+    els.play.classList.remove("playing");
+  }
+});
+
+// Click anywhere on the replay (except the ghost toggle) to play/pause.
+els.videoWrap.addEventListener("click", (e) => {
+  if (e.target.closest("#ghost-control") || !els.video.src || !els.dropHint.hidden) return;
+  togglePlay();
+});
+
+function togglePlay() {
+  if (els.video.paused) {
+    els.video.play();
+    els.play.classList.add("playing");
+  } else {
+    els.video.pause();
+  }
+}
+
+// Slow-motion: swing review lives at quarter and half speed.
+els.speed.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-rate]");
+  if (!btn) return;
+  state.rate = Number(btn.dataset.rate);
+  els.video.playbackRate = state.rate;
+  for (const b of els.speed.children) b.classList.toggle("active", b === btn);
+});
+
+els.loop.addEventListener("click", () => {
+  state.loopSwing = !state.loopSwing;
+  els.loop.setAttribute("aria-pressed", String(state.loopSwing));
+});
+
+// Keyboard transport: space = play/pause, arrows = step a frame,
+// Home/End = first/last frame. Ignored while typing in a control.
+document.addEventListener("keydown", (e) => {
+  if (!state.frames.length) return;
+  const tag = e.target.tagName;
+  if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || e.target.isContentEditable) return;
+  switch (e.key) {
+    case " ": e.preventDefault(); togglePlay(); break;
+    case "ArrowLeft": e.preventDefault(); els.video.pause(); showFrame(state.current - 1); break;
+    case "ArrowRight": e.preventDefault(); els.video.pause(); showFrame(state.current + 1); break;
+    case "Home": e.preventDefault(); els.video.pause(); showFrame(0); break;
+    case "End": e.preventDefault(); els.video.pause(); showFrame(state.frames.length - 1); break;
+    default: return;
+  }
+});
 
 function playbackLoop() {
   if (!els.video.paused && state.frames.length) {
+    // Loop the swing: when playback runs past the finish, jump back to address.
+    if (state.loopSwing && state.phases) {
+      const start = state.frames[state.phases.address]?.t ?? 0;
+      const end = state.frames[state.phases.finish]?.t ?? els.video.duration;
+      if (els.video.currentTime >= end || els.video.currentTime < start - 0.05) {
+        els.video.currentTime = start;
+      }
+    }
     const i = nearestFrame(els.video.currentTime);
     state.current = i;
     els.scrubber.value = i;
@@ -473,6 +546,9 @@ function renderReport() {
 function renderFeedback() {
   const items = buildFeedback(state.frames, state.phases, state.ref, tempoBenchmark());
   els.feedback.innerHTML = "";
+  els.feedbackHint.hidden = !items.some(
+    (i) => i.phase != null && state.phases[i.phase] != null
+  );
   for (const item of items) {
     const li = document.createElement("li");
     const title = document.createElement("strong");
