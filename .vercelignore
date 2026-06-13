@@ -1,0 +1,5 @@
+# Not needed at runtime — the app only fetches profile.json and
+# landmarks.json from reference/. Keeps deploys small.
+Loom Message - 12 June 2026.mp4
+reference/justin-thomas/dtl-iron-01.mp4
+reference/justin-thomas/*.jpg
