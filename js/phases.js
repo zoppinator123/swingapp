@@ -42,7 +42,17 @@ export function detectPhases(frames) {
   const speed = ys.map((v, i) => (i ? Math.abs(v - ys[i - 1]) : 0));
   const maxSpeed = Math.max(...speed);
   if (maxSpeed === 0) return null;
-  const moving = speed.map((s) => s > maxSpeed * 0.08);
+  // Threshold low enough to catch a deliberate slow takeaway: the downswing
+  // peak (maxSpeed) can be 20x takeaway speed.
+  const moving = speed.map((s) => s > maxSpeed * 0.05);
+
+  // The fastest wrist motion in any swing is the downswing. Anchoring on it
+  // keeps a high-hands finish hold from masquerading as the top of the
+  // backswing (the wrists are high there too).
+  let fastIdx = 1;
+  for (let i = 1; i < speed.length; i++) {
+    if (speed[i] > speed[fastIdx]) fastIdx = i;
+  }
 
   // Address: the last quiet frame before the first sustained motion.
   let motionStart = 1;
@@ -52,16 +62,19 @@ export function detectPhases(frames) {
       break;
     }
   }
+  if (motionStart >= fastIdx) motionStart = Math.max(1, fastIdx - 1);
   const address = Math.max(0, motionStart - 1);
 
-  // Top: highest wrist point after the takeaway starts.
+  // Top: highest wrist point between the takeaway and the downswing.
   let top = motionStart;
-  for (let i = motionStart; i < ys.length; i++) {
+  for (let i = motionStart; i <= fastIdx; i++) {
     if (ys[i] < ys[top]) top = i;
   }
 
   // Impact: first frame after the top where the wrists drop back to their
-  // address height. Falls back to the fastest frame of the downswing.
+  // address height. If they never quite get there (slow-mo clips cut early,
+  // strong shaft lean), use the frame where they come closest — the lowest
+  // wrist point after the top.
   let impact = -1;
   for (let i = top + 1; i < ys.length; i++) {
     if (ys[i] >= ys[address]) {
@@ -72,7 +85,7 @@ export function detectPhases(frames) {
   if (impact < 0) {
     impact = top + 1;
     for (let i = top + 1; i < ys.length; i++) {
-      if (speed[i] > speed[impact]) impact = i;
+      if (ys[i] > ys[impact]) impact = i;
     }
   }
 

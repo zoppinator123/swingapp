@@ -56,9 +56,63 @@ export async function loadGhost(view) {
 
 const ANCHORS = ["address", "top", "impact", "finish"];
 
-// Maps the player's frame index onto a ghost frame index by piecewise-linear
-// interpolation between matching checkpoints, so both swings hit address,
-// top, impact and finish at the same moment of the replay.
+const clamp01 = (v) => Math.min(1, Math.max(0, v));
+
+function smooth(vals, radius = 2) {
+  return vals.map((_, i) => {
+    let sum = 0;
+    let n = 0;
+    for (let j = i - radius; j <= i + radius; j++) {
+      if (vals[j] != null) {
+        sum += vals[j];
+        n++;
+      }
+    }
+    return n ? sum / n : 0;
+  });
+}
+
+// Maps the player's frame index onto a ghost frame index so both swings sit
+// at the same point of the motion. Within address→top and top→impact the
+// match follows the fraction of wrist travel (so an even backswing tempo on
+// one side tracks an uneven one on the other); impact→finish, where wrist
+// height isn't monotonic, interpolates linearly. Checkpoints always map to
+// checkpoints.
+export function createGhostTimeWarp(ghost, userFrames, userPhases) {
+  const rawUy = userFrames.map((f) =>
+    f.landmarks ? (f.landmarks[LM.L_WRIST].y + f.landmarks[LM.R_WRIST].y) / 2 : null
+  );
+  let last = rawUy.find((v) => v != null) ?? 0;
+  const uy = smooth(rawUy.map((v) => (v != null ? (last = v) : last)));
+  const gy = smooth(ghost.frames.map((f) => (f[LM.L_WRIST][1] + f[LM.R_WRIST][1]) / 2));
+
+  const u = ANCHORS.map((p) => userPhases[p]);
+  const g = ANCHORS.map((p) => ghost.phases[p]);
+
+  return (i) => {
+    if (i <= u[0]) return g[0];
+    for (let k = 0; k + 1 < ANCHORS.length; k++) {
+      if (i > u[k + 1]) continue;
+      if (i === u[k + 1]) return g[k + 1];
+      const [u0, u1, g0, g1] = [u[k], u[k + 1], g[k], g[k + 1]];
+      const uSpan = uy[u1] - uy[u0];
+      const gSpan = gy[g1] - gy[g0];
+      if (k < 2 && Math.abs(uSpan) > 1e-4 && Math.abs(gSpan) > 1e-4) {
+        const p = clamp01((uy[i] - uy[u0]) / uSpan);
+        for (let j = g0; j <= g1; j++) {
+          if (clamp01((gy[j] - gy[g0]) / gSpan) >= p) return j;
+        }
+        return g1;
+      }
+      const f = (i - u0) / Math.max(1, u1 - u0);
+      return Math.round(g0 + f * (g1 - g0));
+    }
+    return g[g.length - 1];
+  };
+}
+
+// Linear checkpoint-to-checkpoint mapping; kept as the simple fallback used
+// when there's no wrist series to derive progress from.
 export function ghostFrameIndex(ghost, userPhases, i) {
   const u = ANCHORS.map((p) => userPhases[p]);
   const g = ANCHORS.map((p) => ghost.phases[p]);

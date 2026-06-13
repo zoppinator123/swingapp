@@ -2,7 +2,7 @@ import { createLandmarker, analyzeVideo } from "./pose.js";
 import { detectPhases } from "./phases.js";
 import { computeMetrics, gradeMetrics, METRIC_LABELS, formatMetricValue } from "./metrics.js";
 import { loadReference, PHASE_LABELS } from "./reference.js";
-import { loadGhost, ghostFrameIndex, createGhostAligner } from "./ghost.js";
+import { loadGhost, createGhostTimeWarp, createGhostAligner } from "./ghost.js";
 import { drawOverlay } from "./overlay.js";
 import { buildFeedback } from "./feedback.js";
 
@@ -42,6 +42,7 @@ const state = {
   ref: null,
   ghost: null,
   ghostAlign: null,
+  ghostWarp: null,
   chips: [],
   addressLm: null,
   current: 0,
@@ -62,6 +63,7 @@ function loadFile(file) {
   state.addressLm = null;
   state.ghost = null;
   state.ghostAlign = null;
+  state.ghostWarp = null;
   els.ghostControl.hidden = true;
   els.transport.hidden = true;
   els.report.hidden = true;
@@ -135,6 +137,9 @@ els.analyze.addEventListener("click", async () => {
       state.ghost && anchorLm
         ? createGhostAligner(state.ghost, anchorLm, els.overlay.width, els.overlay.height)
         : null;
+    state.ghostWarp = state.ghostAlign
+      ? createGhostTimeWarp(state.ghost, state.frames, state.phases)
+      : null;
     els.ghostControl.hidden = !state.ghostAlign;
 
     els.referenceName.textContent = state.ref.name;
@@ -210,8 +215,8 @@ function drawFrame(i) {
     null;
 
   let ghostLm = null;
-  if (state.ghostAlign && els.ghostToggle.checked) {
-    const gf = state.ghost.frames[ghostFrameIndex(state.ghost, state.phases, i)];
+  if (state.ghostAlign && state.ghostWarp && els.ghostToggle.checked) {
+    const gf = state.ghost.frames[state.ghostWarp(i)];
     if (gf) ghostLm = state.ghostAlign(gf);
   }
 
