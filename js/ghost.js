@@ -6,7 +6,7 @@
 // reference extraction step): a per-frame landmark sequence for one swing
 // with its own checkpoint indices.
 
-import { LM, mid } from "./metrics.js";
+import { LM } from "./metrics.js";
 
 const GHOST_URL = "reference/justin-thomas/landmarks.json";
 
@@ -72,42 +72,74 @@ export function ghostFrameIndex(ghost, userPhases, i) {
   return g[g.length - 1];
 }
 
+// Landmarks used to fit the ghost onto the player: the stable frame of the
+// body at address. Head and arms are excluded — grip style and head position
+// vary too much between players to anchor on.
+const FIT_POINTS = [
+  LM.L_SHOULDER,
+  LM.R_SHOULDER,
+  LM.L_HIP,
+  LM.R_HIP,
+  LM.L_KNEE,
+  LM.R_KNEE,
+  LM.L_ANKLE,
+  LM.R_ANKLE,
+];
+
+// Least-squares fit of user ≈ scale * ghost + offset (uniform scale, no
+// rotation — the ground plane must stay level). Returns the transform and
+// its residual error so the caller can compare mirrored/unmirrored fits.
+function fitSimilarity(ghostPts, userPts) {
+  const n = ghostPts.length;
+  let gx = 0, gy = 0, ux = 0, uy = 0;
+  for (let i = 0; i < n; i++) {
+    gx += ghostPts[i].x; gy += ghostPts[i].y;
+    ux += userPts[i].x; uy += userPts[i].y;
+  }
+  gx /= n; gy /= n; ux /= n; uy /= n;
+
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) {
+    const dgx = ghostPts[i].x - gx, dgy = ghostPts[i].y - gy;
+    num += dgx * (userPts[i].x - ux) + dgy * (userPts[i].y - uy);
+    den += dgx * dgx + dgy * dgy;
+  }
+  const s = den ? num / den : 1;
+  const tx = ux - s * gx;
+  const ty = uy - s * gy;
+
+  let err = 0;
+  for (let i = 0; i < n; i++) {
+    err += Math.hypot(
+      s * ghostPts[i].x + tx - userPts[i].x,
+      s * ghostPts[i].y + ty - userPts[i].y
+    );
+  }
+  return { s, tx, ty, err };
+}
+
 // Builds a transform from one ghost frame to pixel-space landmarks on the
-// player's video: anchored at the player's address mid-hip, scaled by the
-// ratio of torso lengths, and mirrored when the two face opposite ways
-// (left-handed player, or camera on the other side).
+// player's video: a least-squares fit of the ghost's address skeleton onto
+// the player's (shoulders/hips/knees/ankles), tried both plain and mirrored
+// (left-handed player, or camera on the other side) — whichever fits better.
 export function createGhostAligner(ghost, userAddressLm, W, H) {
   const toUserPx = (p) => ({ x: p.x * W, y: p.y * H });
   const toGhostPx = ([x, y]) => ({ x: x * ghost.width, y: y * ghost.height });
 
   const gAddr = ghost.frames[ghost.phases.address];
-  const gHip = mid(toGhostPx(gAddr[LM.L_HIP]), toGhostPx(gAddr[LM.R_HIP]));
-  const gShoulder = mid(
-    toGhostPx(gAddr[LM.L_SHOULDER]),
-    toGhostPx(gAddr[LM.R_SHOULDER])
-  );
-  const uHip = mid(toUserPx(userAddressLm[LM.L_HIP]), toUserPx(userAddressLm[LM.R_HIP]));
-  const uShoulder = mid(
-    toUserPx(userAddressLm[LM.L_SHOULDER]),
-    toUserPx(userAddressLm[LM.R_SHOULDER])
-  );
+  const gPts = FIT_POINTS.map((i) => toGhostPx(gAddr[i]));
+  const uPts = FIT_POINTS.map((i) => toUserPx(userAddressLm[i]));
 
-  const gTorso = Math.hypot(gShoulder.x - gHip.x, gShoulder.y - gHip.y) || 1;
-  const uTorso = Math.hypot(uShoulder.x - uHip.x, uShoulder.y - uHip.y) || 1;
-  const scale = uTorso / gTorso;
-
-  // Facing direction from the forward lean at address.
-  const gDir = Math.sign(gShoulder.x - gHip.x) || 1;
-  const uDir = Math.sign(uShoulder.x - uHip.x) || 1;
-  const flip = gDir === uDir ? 1 : -1;
+  const plain = fitSimilarity(gPts, uPts);
+  const mirrored = fitSimilarity(gPts.map((p) => ({ x: -p.x, y: p.y })), uPts);
+  const flip = mirrored.err < plain.err ? -1 : 1;
+  const { s, tx, ty } = flip < 0 ? mirrored : plain;
+  if (!Number.isFinite(s) || s <= 0) return null;
 
   return (frame) =>
     frame.map((p) => {
       const px = toGhostPx(p);
-      return {
-        x: uHip.x + (px.x - gHip.x) * flip * scale,
-        y: uHip.y + (px.y - gHip.y) * scale,
-      };
+      return { x: s * flip * px.x + tx, y: s * px.y + ty };
     });
 }
 

@@ -130,9 +130,10 @@ els.analyze.addEventListener("click", async () => {
     state.addressLm = state.frames[state.phases.address]?.landmarks ?? null;
 
     state.ghost = await loadGhost(els.view.value);
+    const anchorLm = averagedLandmarks(state.phases.address) ?? state.addressLm;
     state.ghostAlign =
-      state.ghost && state.addressLm
-        ? createGhostAligner(state.ghost, state.addressLm, els.overlay.width, els.overlay.height)
+      state.ghost && anchorLm
+        ? createGhostAligner(state.ghost, anchorLm, els.overlay.width, els.overlay.height)
         : null;
     els.ghostControl.hidden = !state.ghostAlign;
 
@@ -156,6 +157,22 @@ els.analyze.addEventListener("click", async () => {
     els.progress.hidden = true;
   }
 });
+
+// Landmarks averaged over a small window around a frame — a steadier anchor
+// for the ghost fit than any single frame's pose estimate.
+function averagedLandmarks(center, radius = 2) {
+  const acc = [];
+  let n = 0;
+  for (let i = center - radius; i <= center + radius; i++) {
+    const lm = state.frames[i]?.landmarks;
+    if (!lm) continue;
+    n++;
+    lm.forEach((p, k) => {
+      acc[k] = acc[k] ? { x: acc[k].x + p.x, y: acc[k].y + p.y } : { x: p.x, y: p.y };
+    });
+  }
+  return n ? acc.map((p) => ({ x: p.x / n, y: p.y / n })) : null;
+}
 
 // --- Playback & overlay ----------------------------------------------------
 
