@@ -521,11 +521,21 @@ table.metrics td:last-child, table.metrics th:last-child { text-align: right; }
   border-left: 3px solid var(--bad);
   border-radius: 10px;
   padding: 11px 13px;
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
+#feedback li strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 15px;
+  color: var(--bad);
+}
+
+#feedback li span { color: var(--text); }
+
 #feedback li.good { border-left-color: var(--good); }
+#feedback li.good strong { color: var(--good); }
 
 /* --- Footer ----------------------------------------------------------- */
 

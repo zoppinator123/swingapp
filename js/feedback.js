@@ -1,10 +1,13 @@
 // Turns graded checkpoint metrics into plain-language coaching feedback.
+// Each item: { title, text, good? } — a short name for the issue, then what
+// happened, why it matters, and one thing to feel or practice.
 
 import { computeMetrics, gradeMetrics } from "./metrics.js";
 
-const fmt = (v, digits = 1) => v.toFixed(digits);
+const deg = (v, digits = 0) => `${v.toFixed(digits)}°`;
+const pct = (v) => `${Math.round(v * 100)}%`;
 
-// Returns [{ text, good }] — one entry per finding, worst problems first.
+// Returns [{ title, text, good }] — one entry per finding.
 export function buildFeedback(frames, phases, ref) {
   const items = [];
   const addressLm = frames[phases.address]?.landmarks;
@@ -25,23 +28,56 @@ export function buildFeedback(frames, phases, ref) {
     const { metrics, grades } = address;
     if (grades.spineAngle === false) {
       const range = ref.phases.address.spineAngle;
-      items.push({
-        text:
-          metrics.spineAngle < (range.min ?? 0)
-            ? `Setup is too upright: ${fmt(metrics.spineAngle)}° of forward bend at address (target ${range.min}–${range.max}°). Tilt from the hips, not the waist.`
-            : `Setup is too hunched: ${fmt(metrics.spineAngle)}° of forward bend at address (target ${range.min}–${range.max}°). Stand taller with a flatter back.`,
-      });
+      if (metrics.spineAngle < (range.min ?? 0)) {
+        items.push({
+          title: "Tilt forward more at setup",
+          text:
+            `You're standing too straight over the ball — ${deg(metrics.spineAngle)} of forward tilt, ` +
+            `where the reference window is ${range.min}–${range.max}°. ` +
+            `Push your hips back (like you're closing a car door behind you) and let your chest ` +
+            `lean toward the ball until your arms hang straight down from your shoulders.`,
+        });
+      } else {
+        items.push({
+          title: "Stand a bit taller at setup",
+          text:
+            `You're bent over too far — ${deg(metrics.spineAngle)} of forward tilt, ` +
+            `vs the ${range.min}–${range.max}° window. Keep the tilt, but get it by pushing ` +
+            `your hips back: lift your chest and flatten your back instead of slumping your shoulders.`,
+        });
+      }
     }
     if (grades.kneeFlex === false) {
-      items.push({
-        text: `Knee flex at address is outside the tour window (${fmt(metrics.kneeFlex, 0)}°, target ${ref.phases.address.kneeFlex.min}–${ref.phases.address.kneeFlex.max}°). Athletic, slightly flexed knees — not squatting, not locked.`,
-      });
+      const range = ref.phases.address.kneeFlex;
+      if (metrics.kneeFlex > (range.max ?? 180)) {
+        items.push({
+          title: "Soften your knees at setup",
+          text:
+            `Your legs are nearly locked — knee angle ${deg(metrics.kneeFlex)}, where 180° is ` +
+            `dead straight and the reference sets up at ${range.min}–${range.max}°. ` +
+            `Sink into an athletic stance, like a shortstop waiting on a ground ball: ` +
+            `a small knee bend lets your hips turn instead of your whole body lifting up.`,
+        });
+      } else {
+        items.push({
+          title: "Don't sit so deep at setup",
+          text:
+            `Your knees are bent more than the reference — knee angle ${deg(metrics.kneeFlex)} ` +
+            `vs the ${range.min}–${range.max}° window (180° is dead straight). Stand up a touch: ` +
+            `squatting too much at setup usually makes the body rise back up mid-swing.`,
+        });
+      }
     }
   }
 
   if (top?.grades.headSway === false) {
     items.push({
-      text: `Head sways ${fmt(top.metrics.headSway, 2)}× torso length off the ball at the top (target ≤ ${ref.phases.top.headSway.max}). Turn around your spine instead of sliding away from the target.`,
+      title: "Keep your head steadier going back",
+      text:
+        `During the backswing your head slid sideways about ${pct(top.metrics.headSway)} of your ` +
+        `torso length — the reference keeps it under ${pct(ref.phases.top.headSway.max)}. ` +
+        `Feel like you're turning your chest around a head that stays put. A steady head makes it ` +
+        `far easier to get the club back to the ball the same way every time.`,
     });
   }
 
@@ -49,28 +85,53 @@ export function buildFeedback(frames, phases, ref) {
     const { metrics, grades } = impact;
     if (grades.spineAngleDelta === false && metrics.spineAngleDelta < 0) {
       items.push({
-        text: `Early extension: you lost ${fmt(Math.abs(metrics.spineAngleDelta))}° of spine angle by impact. Keep your chest down through the ball — maintain the bend you set at address.`,
+        title: "You stand up through the ball (early extension)",
+        text:
+          `By impact you'd lost ${deg(Math.abs(metrics.spineAngleDelta), 1)} of the forward tilt ` +
+          `you started with — your body straightened and your hips pushed toward the ball. ` +
+          `This is the classic cause of thin shots and misses to the right. ` +
+          `Practice feel: keep your back pockets against an imaginary wall behind you as you swing ` +
+          `down, and keep your chest pointing at the ball through the strike.`,
       });
     } else if (grades.spineAngleDelta === false) {
       items.push({
-        text: `You're diving into the ball: spine angle increased ${fmt(metrics.spineAngleDelta)}° by impact. Stay tall through the strike.`,
+        title: "You dip down into the ball",
+        text:
+          `Your forward tilt increased ${deg(metrics.spineAngleDelta, 1)} by impact — you're ` +
+          `crouching into the strike, which usually shows up as heavy, fat contact. ` +
+          `Feel taller through impact: let your lead leg straighten and your hips turn open ` +
+          `instead of dropping your chest at the ball.`,
       });
     }
     if (grades.headSway === false) {
       items.push({
-        text: `Head moves ${fmt(impact.metrics.headSway, 2)}× torso length by impact. Quiet head through the hitting zone.`,
+        title: "Quiet your head through the strike",
+        text:
+          `Your head had moved about ${pct(impact.metrics.headSway)} of your torso length by ` +
+          `impact (reference: under ${pct(ref.phases.impact.headSway.max)}). ` +
+          `Keep your eyes locked on the ball until well after contact — let your head come up ` +
+          `with the follow-through, not before it.`,
       });
     }
     if (grades.hipSway === false) {
       items.push({
-        text: `Hip slide at impact is ${fmt(impact.metrics.hipSway, 2)}× torso length, outside the reference window. Rotate the hips open rather than sliding laterally.`,
+        title: "Turn your hips instead of sliding them",
+        text:
+          `Your hips slid sideways about ${pct(impact.metrics.hipSway)} of your torso length by ` +
+          `impact (reference: under ${pct(ref.phases.impact.hipSway.max)}). A small bump toward ` +
+          `the target is fine — after that, feel your belt buckle rotate to face the target ` +
+          `rather than your whole body drifting.`,
       });
     }
   }
 
   if (items.length === 0) {
     items.push({
-      text: "All tracked checkpoints are inside the reference windows. Posture looks solid — next step is comparing tempo and rotation once the Justin Thomas profile is loaded.",
+      title: "Posture checks out",
+      text:
+        "Your setup tilt, knee bend, and head stability are all inside the reference windows at " +
+        "every checkpoint. Next thing to tighten: play the replay with the ghost on and watch " +
+        "where your arms and body separate from the blue skeleton between checkpoints.",
       good: true,
     });
   }

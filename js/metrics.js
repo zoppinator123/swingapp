@@ -111,10 +111,19 @@ export function gradeMetrics(metrics, phaseRef) {
 }
 
 export const METRIC_LABELS = {
-  spineAngle: "Spine angle (° from vertical)",
-  spineAngleDelta: "Spine angle change vs address (°)",
-  kneeFlex: "Knee flex (° hip-knee-ankle)",
-  shoulderTilt: "Shoulder tilt (° from horizontal)",
-  headSway: "Head sway (× torso length)",
-  hipSway: "Hip sway (× torso length)",
+  spineAngle: "Forward tilt",
+  spineAngleDelta: "Tilt change vs setup",
+  kneeFlex: "Knee bend (180° = straight)",
+  shoulderTilt: "Shoulder slope",
+  headSway: "Head slide",
+  hipSway: "Hip slide",
 };
+
+// Human-readable metric values: degrees for angles, "% of torso length" for
+// the sway/drift metrics (which are stored as fractions).
+export function formatMetricValue(name, v) {
+  if (name === "headSway" || name === "hipSway") return `${Math.round(v * 100)}%`;
+  const digits = Number.isInteger(v) ? 0 : name === "kneeFlex" ? 0 : 1;
+  const sign = name === "spineAngleDelta" && v >= 0 ? "+" : "";
+  return `${sign}${v.toFixed(digits)}°`;
+}

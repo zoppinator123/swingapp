@@ -1,6 +1,6 @@
 import { createLandmarker, analyzeVideo } from "./pose.js";
 import { detectPhases } from "./phases.js";
-import { computeMetrics, gradeMetrics, METRIC_LABELS } from "./metrics.js";
+import { computeMetrics, gradeMetrics, METRIC_LABELS, formatMetricValue } from "./metrics.js";
 import { loadReference, PHASE_LABELS } from "./reference.js";
 import { loadGhost, ghostFrameIndex, createGhostAligner } from "./ghost.js";
 import { drawOverlay } from "./overlay.js";
@@ -281,10 +281,11 @@ function renderReport() {
   table.innerHTML =
     "<tr><th>Checkpoint</th><th>Metric</th><th>Target</th><th>Value</th></tr>";
 
-  const fmtRange = (r) => {
-    if (r.min != null && r.max != null) return `${r.min} – ${r.max}`;
-    if (r.max != null) return `≤ ${r.max}`;
-    if (r.min != null) return `≥ ${r.min}`;
+  const fmtRange = (name, r) => {
+    const f = (v) => formatMetricValue(name, v);
+    if (r.min != null && r.max != null) return `${f(r.min)} – ${f(r.max)}`;
+    if (r.max != null) return `≤ ${f(r.max)}`;
+    if (r.min != null) return `≥ ${f(r.min)}`;
     return "";
   };
 
@@ -303,8 +304,8 @@ function renderReport() {
       row.innerHTML =
         `<td>${PHASE_LABELS[phase]}</td>` +
         `<td>${METRIC_LABELS[name] ?? name}</td>` +
-        `<td class="target">${fmtRange(phaseRef[name])}</td>` +
-        `<td><span class="${cls}">${metrics[name].toFixed(2)}</span></td>`;
+        `<td class="target">${fmtRange(name, phaseRef[name])}</td>` +
+        `<td><span class="${cls}">${formatMetricValue(name, metrics[name])}</span></td>`;
       table.appendChild(row);
     }
   }
@@ -319,7 +320,11 @@ function renderFeedback() {
   els.feedback.innerHTML = "";
   for (const item of items) {
     const li = document.createElement("li");
-    li.textContent = item.text;
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+    const body = document.createElement("span");
+    body.textContent = item.text;
+    li.append(title, body);
     if (item.good) li.className = "good";
     els.feedback.appendChild(li);
   }
