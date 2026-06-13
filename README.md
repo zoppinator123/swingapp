@@ -37,7 +37,11 @@ entirely in your browser — your swing video never leaves your device.
 4. Grades each checkpoint against the reference profile and draws the
    overlay: skeleton, spine line (green in range / red out), dashed target
    wedge for spine angle, and a head-stability box.
-5. Generates plain-language feedback (e.g. early extension, head sway).
+5. Overlays Justin Thomas as a blue "ghost" skeleton, time-warped so his
+   address/top/impact/finish land on yours, scaled to your body and mirrored
+   for handedness — and colors each limb segment of your skeleton green/red
+   by how far it strays from his matching segment at that moment.
+6. Generates plain-language feedback (e.g. early extension, head sway).
 
 ## The Justin Thomas reference profile
 
@@ -54,7 +58,8 @@ for naming) and rerun the extraction step to fill it in.
 - [x] Web prototype: upload → pose overlay → checkpoint grading → feedback
 - [x] Extract the Justin Thomas profile from committed footage (down-the-line
       iron; face-on footage still wanted)
-- [ ] Side-by-side ghost comparison (your frame vs JT at the same checkpoint)
+- [x] Ghost comparison overlay (JT's skeleton on your replay, time-matched,
+      with per-limb green/red grading) — down-the-line only so far
 - [ ] Rotation metrics (shoulder/hip turn, X-factor) and tempo (3:1 ratio)
 - [ ] Manual checkpoint correction when auto-detection misses
 - [ ] Native mobile app with in-app slow-mo capture and real-time feedback

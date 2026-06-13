@@ -2,6 +2,7 @@ import { createLandmarker, analyzeVideo } from "./pose.js";
 import { detectPhases } from "./phases.js";
 import { computeMetrics, gradeMetrics, METRIC_LABELS } from "./metrics.js";
 import { loadReference, PHASE_LABELS } from "./reference.js";
+import { loadGhost, ghostFrameIndex, createGhostAligner } from "./ghost.js";
 import { drawOverlay } from "./overlay.js";
 import { buildFeedback } from "./feedback.js";
 
@@ -26,6 +27,8 @@ const els = {
   status: $("status"),
   referenceInfo: $("reference-info"),
   referenceName: $("reference-name"),
+  ghostControl: $("ghost-control"),
+  ghostToggle: $("ghost-toggle"),
   report: $("report"),
   metrics: $("metrics"),
   feedbackSection: $("feedback-section"),
@@ -37,6 +40,8 @@ const state = {
   frames: [],
   phases: null,
   ref: null,
+  ghost: null,
+  ghostAlign: null,
   addressLm: null,
   current: 0,
   analyzing: false,
@@ -54,6 +59,9 @@ function loadFile(file) {
   state.frames = [];
   state.phases = null;
   state.addressLm = null;
+  state.ghost = null;
+  state.ghostAlign = null;
+  els.ghostControl.hidden = true;
   els.transport.hidden = true;
   els.report.hidden = true;
   els.feedbackSection.hidden = true;
@@ -116,6 +124,13 @@ els.analyze.addEventListener("click", async () => {
     state.ref = await loadReference(els.view.value);
     state.addressLm = state.frames[state.phases.address]?.landmarks ?? null;
 
+    state.ghost = await loadGhost(els.view.value);
+    state.ghostAlign =
+      state.ghost && state.addressLm
+        ? createGhostAligner(state.ghost, state.addressLm, els.overlay.width, els.overlay.height)
+        : null;
+    els.ghostControl.hidden = !state.ghostAlign;
+
     els.referenceName.textContent = state.ref.name;
     els.referenceInfo.hidden = false;
 
@@ -172,11 +187,18 @@ function drawFrame(i) {
     state.ref?.phases?.top?.headSway?.max ??
     null;
 
+  let ghostLm = null;
+  if (state.ghostAlign && els.ghostToggle.checked) {
+    const gf = state.ghost.frames[ghostFrameIndex(state.ghost, state.phases, i)];
+    if (gf) ghostLm = state.ghostAlign(gf);
+  }
+
   drawOverlay(ctx, els.overlay.width, els.overlay.height, frame.landmarks, {
     addressLm: state.addressLm,
     spineRange,
     headTolerance,
     posturePhase,
+    ghostLm,
   });
 
   els.frameLabel.textContent = `${i + 1} / ${state.frames.length}`;
@@ -203,6 +225,8 @@ els.play.addEventListener("click", () => {
     els.play.textContent = "▶";
   }
 });
+
+els.ghostToggle.addEventListener("change", () => drawFrame(state.current));
 
 els.video.addEventListener("pause", () => (els.play.textContent = "▶"));
 els.video.addEventListener("ended", () => (els.play.textContent = "▶"));

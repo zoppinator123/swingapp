@@ -53,6 +53,11 @@ it and writes `profile.json` in this folder, shaped like the defaults in
 
 The app picks up `profile.json` automatically — no code change needed.
 
+The extraction step also writes `landmarks.json` — the full per-frame
+landmark sequence for one swing plus its checkpoint indices. The app uses it
+for the ghost overlay (JT's skeleton drawn over the player's replay,
+time-warped checkpoint-to-checkpoint) and for per-limb green/red grading.
+
 > Note: fine for personal use; if the app is ever distributed publicly,
 > using a named player's likeness as the in-app benchmark needs a rights
 > review.
