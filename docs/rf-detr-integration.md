@@ -30,13 +30,18 @@ Per-joint uncertainty ellipses drawn on the replay overlay, toggled by a new
 **Uncertainty** switch on the video (next to **Ghost**).
 
 - **Where the uncertainty comes from** (`js/uncertainty.js`): for each joint we
-  take its position over a short window of frames (±3) and compute the 2x2
-  covariance, then eigen-decompose it into a rotated ellipse (major/minor =
-  standard deviations along the principal axes). We inflate the ellipse where
-  MediaPipe reports low `visibility`, so an occluded-but-still joint still reads
-  as uncertain. Intuition: a joint the tracker is unsure about jitters
-  frame-to-frame and/or reports low visibility → a big red ellipse; a
-  confidently tracked joint stays put → a tight amber one.
+  take a short window of frames (±3) and fit its *smooth* trajectory (a degree-2
+  polynomial in time — position, velocity, acceleration), then take the 2x2
+  covariance of the **residuals** around that fit and eigen-decompose it into a
+  rotated ellipse. Using residuals rather than raw spread is what stops a fast
+  but well-tracked joint (a downswing wrist) from looking uncertain just because
+  it moved a lot — only wobble *off* the smooth path counts. On top of that we
+  add radius for low confidence (MediaPipe `visibility` × `presence`) and for
+  instability in the depth (`z`) estimate, so an occluded or depth-flipping joint
+  still reads as uncertain even when its 2D position looks calm. Intuition: a
+  joint the tracker is unsure about wobbles off its path, reports low
+  visibility/presence, or has a jumpy depth → a big red ellipse; a confidently
+  tracked joint → a tight amber one.
 - **Rendering** (`js/overlay.js`, `drawUncertaintyEllipses`): semi-transparent,
   coloured along an amber→red ramp by a normalized uncertainty score (bigger ⇒
   redder ⇒ more opaque). The skeleton's joint dot sits in each ellipse centre.

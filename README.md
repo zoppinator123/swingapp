@@ -47,9 +47,11 @@ entirely in your browser — your swing video never leaves your device.
    tempo); tap any note to jump the replay to the frame it describes.
 8. Optionally overlays a per-joint **uncertainty ellipse** on each landmark
    (toggle **Uncertainty** on the replay): a covariance ellipse derived from how
-   much the joint jitters frame-to-frame, inflated where the pose model reports
-   low visibility. Amber = confidently tracked, red = uncertain — so you can see
-   where to trust the analysis. Runs in-browser like everything else.
+   much the joint wobbles *off its smooth trajectory* frame-to-frame (so fast
+   but clean motion isn't penalised), enlarged where the model's
+   visibility/presence is low or its depth estimate is unstable. Amber =
+   confidently tracked, red = uncertain — so you can see where to trust the
+   analysis. Runs in-browser like everything else.
 
 ## The Justin Thomas reference profile
 
