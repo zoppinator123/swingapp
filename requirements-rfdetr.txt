@@ -1,0 +1,17 @@
+# Optional dependencies for the offline RF-DETR pose pipeline (models/, lib/,
+# scripts/run_rf_detr.py). The web app needs none of these — it runs entirely
+# in the browser. Install only if you want to run the Python tooling:
+#
+#   pip install -r requirements-rfdetr.txt
+#
+# The core (models/pose.py dataclasses + synthetic backend + ellipse math) is
+# pure Python and needs nothing here; these add real inference + video I/O.
+
+numpy>=1.24
+opencv-python>=4.8
+PyYAML>=6.0
+
+# Real RF-DETR keypoint inference. Pose support is recent; pin/upgrade as
+# needed, and bring your own fine-tuned keypoint weights (none ship pretrained).
+rfdetr>=1.3.0
+supervision>=0.26.0

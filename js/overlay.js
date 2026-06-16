@@ -13,8 +13,47 @@ const BAD = "#E2693F";
 const NEUTRAL = "rgba(243, 239, 230, 0.6)";
 const GHOST = "rgba(125, 196, 255, 0.7)";
 
+// Uncertainty ellipse colour ramp: low uncertainty reads as a faint amber,
+// high uncertainty as a more opaque red — "where the model is unsure".
+const UNC_LOW = [232, 184, 75]; // amber
+const UNC_HIGH = [211, 64, 48]; // red
+
 function toPx(p, W, H) {
   return { x: p.x * W, y: p.y * H };
+}
+
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// Maps a 0..1 uncertainty score to fill/stroke colours along the amber→red
+// ramp, with opacity also growing with uncertainty so big red blobs pop.
+function uncertaintyColors(u) {
+  const t = Math.max(0, Math.min(1, u));
+  const r = Math.round(lerp(UNC_LOW[0], UNC_HIGH[0], t));
+  const g = Math.round(lerp(UNC_LOW[1], UNC_HIGH[1], t));
+  const b = Math.round(lerp(UNC_LOW[2], UNC_HIGH[2], t));
+  return {
+    fill: `rgba(${r}, ${g}, ${b}, ${lerp(0.14, 0.4, t).toFixed(3)})`,
+    stroke: `rgba(${r}, ${g}, ${b}, ${lerp(0.5, 0.85, t).toFixed(3)})`,
+  };
+}
+
+// Draws the per-joint uncertainty ellipses (already in pixel space, full axis
+// lengths in width/height, angle in degrees). The skeleton, drawn afterwards,
+// puts its joint dot in the centre of each ellipse.
+export function drawUncertaintyEllipses(ctx, ellipses) {
+  if (!ellipses?.length) return;
+  ctx.save();
+  for (const e of ellipses) {
+    const { fill, stroke } = uncertaintyColors(e.uncertainty ?? 0);
+    ctx.beginPath();
+    ctx.ellipse(e.cx, e.cy, e.width / 2, e.height / 2, (e.angle * Math.PI) / 180, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function line(ctx, a, b, color, width, dash = []) {
@@ -122,17 +161,21 @@ function drawHeadBox(ctx, lm, addressLm, tolerance, W, H) {
   ctx.restore();
 }
 
-// options: { addressLm, spineRange, headTolerance, posturePhase, ghostLm } —
-// the spine/head guides are suppressed after impact (posturePhase ===
-// "done") since follow-through posture is intentionally different. ghostLm
-// is the time-matched reference skeleton in pixel space; when present, the
-// ghost is drawn under the player and every bone of the player's skeleton
-// is colored by how far it deviates from the ghost's matching segment.
+// options: { addressLm, spineRange, headTolerance, posturePhase, ghostLm,
+// ellipses } — the spine/head guides are suppressed after impact
+// (posturePhase === "done") since follow-through posture is intentionally
+// different. ghostLm is the time-matched reference skeleton in pixel space;
+// when present, the ghost is drawn under the player and every bone of the
+// player's skeleton is colored by how far it deviates from the ghost's
+// matching segment. ellipses, when present, are the per-joint uncertainty
+// ellipses (pixel space) drawn beneath the skeleton.
 export function drawOverlay(ctx, W, H, lm, options = {}) {
   ctx.clearRect(0, 0, W, H);
 
   if (options.ghostLm) drawGhost(ctx, options.ghostLm);
   if (!lm) return;
+
+  if (options.ellipses) drawUncertaintyEllipses(ctx, options.ellipses);
 
   let boneColors = null;
   if (options.ghostLm) {

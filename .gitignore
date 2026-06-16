@@ -1,0 +1,8 @@
+# Python bytecode / caches from the offline pose pipeline
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Generated CLI output
+*_uncertainty.mp4

@@ -45,6 +45,11 @@ entirely in your browser — your swing video never leaves your device.
    against the reference swing measured the same wrist-based way.
 7. Generates plain-language feedback (e.g. early extension, head sway, rushed
    tempo); tap any note to jump the replay to the frame it describes.
+8. Optionally overlays a per-joint **uncertainty ellipse** on each landmark
+   (toggle **Uncertainty** on the replay): a covariance ellipse derived from how
+   much the joint jitters frame-to-frame, inflated where the pose model reports
+   low visibility. Amber = confidently tracked, red = uncertain — so you can see
+   where to trust the analysis. Runs in-browser like everything else.
 
 ## The Justin Thomas reference profile
 
@@ -55,6 +60,19 @@ automatically. The **face-on** view still falls back to the placeholder tour
 baselines in `js/reference.js` — commit face-on JT footage under
 [`reference/justin-thomas/`](reference/justin-thomas/) (see the README there
 for naming) and rerun the extraction step to fill it in.
+
+## Pose uncertainty & offline tooling
+
+The replay's **Uncertainty** overlay (see point 8 above) is implemented in
+`js/uncertainty.js` (covariance/eigen math + `PoseResult`) and drawn by
+`js/overlay.js`. It needs no extra dependency and never sends data off-device.
+
+A separate, optional **Python pipeline** under `models/`, `lib/`, `scripts/`
+and `config/` mirrors the same `PoseResult` shape for offline experiments
+(including an RF-DETR Keypoints scaffold and a `scripts/run_rf_detr.py` CLI that
+renders ellipses onto a video). It is not part of the web app. See
+[`docs/rf-detr-integration.md`](docs/rf-detr-integration.md) for what it does,
+why RF-DETR alone can't supply the ellipses, and how to take it further.
 
 ## Roadmap
 

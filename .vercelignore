@@ -3,3 +3,11 @@
 Loom Message - 12 June 2026.mp4
 reference/justin-thomas/dtl-iron-01.mp4
 reference/justin-thomas/*.jpg
+
+# Offline Python pose pipeline — not part of the static web app.
+models/
+lib/
+scripts/
+config/
+docs/
+requirements-rfdetr.txt

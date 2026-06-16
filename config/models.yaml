@@ -1,0 +1,56 @@
+# Pose-model configuration for the offline Python pipeline.
+#
+# This drives models.pose.get_pose_model / lib.analysis.SwingAnalyzer and the
+# scripts/run_rf_detr.py CLI. The in-browser app does NOT read this file — it
+# runs MediaPipe directly in JS; see docs/rf-detr-integration.md.
+
+# Backend used when none is specified.
+default_model: rf_detr
+
+models:
+  rf_detr:
+    # RF-DETR Keypoints. NOTE: no pretrained pose weights exist — set `weights`
+    # to a checkpoint fine-tuned on a keypoint dataset (e.g. COCO-Pose) before
+    # expecting real predictions. RF-DETR emits (x, y, visibility) only; the
+    # uncertainty ellipses are derived (see ellipses: below).
+    weights: null            # path to a fine-tuned .pth checkpoint
+    model_size: nano         # nano | small | medium | base
+    resolution: null         # divisible by 56; null = model default
+    device: null             # cuda | cpu | mps | null (auto)
+    confidence_threshold: 0.3
+    temporal_window: 5       # trailing frames used for covariance ellipses; 0 = confidence-only
+
+  # The pre-RF-DETR estimator. In the browser this is MediaPipe BlazePose;
+  # offline we ship a dependency-free synthetic stand-in under the same names.
+  legacy: { alias: synthetic }
+  yolo: { alias: synthetic }
+  synthetic:
+    jitter: 0.02             # fraction of frame added as per-joint noise
+
+# Ellipse derivation + drawing knobs (mirror js/uncertainty.js defaults).
+ellipses:
+  k_sigma: 2.4               # standard deviations spanned by the drawn ellipse
+  visibility_inflation: 1.6  # extra growth as confidence -> 0
+  min_radius_frac: 0.012     # floor on each semi-axis, as a fraction of torso length
+  max_radius_frac: 0.16      # ceiling, same units
+  high_uncertainty_frac: 0.11  # mean radius that maps to "fully red"
+
+# COCO-17 joint order RF-DETR follows (for reference).
+keypoints:
+  - nose
+  - left_eye
+  - right_eye
+  - left_ear
+  - right_ear
+  - left_shoulder
+  - right_shoulder
+  - left_elbow
+  - right_elbow
+  - left_wrist
+  - right_wrist
+  - left_hip
+  - right_hip
+  - left_knee
+  - right_knee
+  - left_ankle
+  - right_ankle

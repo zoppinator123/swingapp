@@ -287,6 +287,9 @@ body::after {
 }
 .hud-toggle-label { font-size: 13px; font-weight: 600; color: var(--bone); }
 
+/* second toggle stacks beneath the first (≈ pill height + gap) */
+#uncertainty-control { top: 64px; }
+
 /* ---- Camera capture overlay ----------------------------------------------- */
 
 .capture-bar {
@@ -606,6 +609,7 @@ body::after {
 .swatch.good { background: var(--good); }
 .swatch.bad { background: var(--bad); }
 .swatch.ghost { background: repeating-linear-gradient(90deg, var(--sky) 0 5px, transparent 5px 8px); }
+.swatch.uncertain { background: linear-gradient(90deg, rgba(232, 184, 75, 0.9), rgba(211, 64, 48, 0.9)); }
 
 /* ---- Panel & cards -------------------------------------------------------- */
 
@@ -876,7 +880,7 @@ footer .muted { font-size: 12px; line-height: 1.6; }
 /* ---- A11y / motion -------------------------------------------------------- */
 
 /* the ghost switch (shared by HUD toggle) */
-#ghost-control input { position: absolute; opacity: 0; pointer-events: none; }
+.hud-toggle input { position: absolute; opacity: 0; pointer-events: none; }
 .switch {
   flex: none;
   width: 40px; height: 24px;
@@ -895,9 +899,9 @@ footer .muted { font-size: 12px; line-height: 1.6; }
   background: var(--bone-dim);
   transition: transform var(--dur) var(--ease), background var(--dur) var(--ease);
 }
-#ghost-control input:checked + .switch { background: rgba(200, 164, 90, 0.30); border-color: var(--brass); }
-#ghost-control input:checked + .switch::after { transform: translateX(16px); background: var(--brass-bright); }
-#ghost-control input:focus-visible + .switch { outline: 2px solid var(--sky); outline-offset: 2px; }
+.hud-toggle input:checked + .switch { background: rgba(200, 164, 90, 0.30); border-color: var(--brass); }
+.hud-toggle input:checked + .switch::after { transform: translateX(16px); background: var(--brass-bright); }
+.hud-toggle input:focus-visible + .switch { outline: 2px solid var(--sky); outline-offset: 2px; }
 
 :focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
 

@@ -4,6 +4,7 @@ import { computeMetrics, gradeMetrics, METRIC_LABELS, formatMetricValue } from "
 import { loadReference, PHASE_LABELS } from "./reference.js";
 import { loadGhost, createGhostTimeWarp, createGhostAligner } from "./ghost.js";
 import { drawOverlay } from "./overlay.js";
+import { buildPoseResult } from "./uncertainty.js";
 import { buildFeedback } from "./feedback.js";
 
 const $ = (id) => document.getElementById(id);
@@ -41,6 +42,8 @@ const els = {
   referenceName: $("reference-name"),
   ghostControl: $("ghost-control"),
   ghostToggle: $("ghost-toggle"),
+  uncertaintyControl: $("uncertainty-control"),
+  uncertaintyToggle: $("uncertainty-toggle"),
   overlayLegend: $("overlay-legend"),
   summary: $("summary"),
   summaryHeadline: $("summary-headline"),
@@ -106,6 +109,7 @@ function loadSource(src, name) {
   state.ghostAlign = null;
   state.ghostWarp = null;
   els.ghostControl.hidden = true;
+  els.uncertaintyControl.hidden = true;
   els.transport.hidden = true;
   setAdjustMode(false);
   els.adjustRow.hidden = true;
@@ -506,6 +510,7 @@ function setPhase(phase, i) {
 
 function setupTransport() {
   els.transport.hidden = false;
+  els.uncertaintyControl.hidden = false; // available whenever there are frames
   els.adjustRow.hidden = false;
   els.scrubber.max = state.frames.length - 1;
   els.scrubber.value = 0;
@@ -544,12 +549,25 @@ function drawFrame(i) {
     if (gf) ghostLm = state.ghostAlign(gf);
   }
 
+  // Per-joint uncertainty ellipses, computed on demand from a short window of
+  // frames around this one (cheap: 13 joints over a handful of frames).
+  let ellipses = null;
+  if (els.uncertaintyToggle.checked && frame.landmarks) {
+    ellipses = buildPoseResult(
+      state.frames,
+      i,
+      els.overlay.width,
+      els.overlay.height,
+    ).ellipses;
+  }
+
   drawOverlay(ctx, els.overlay.width, els.overlay.height, frame.landmarks, {
     addressLm: state.addressLm,
     spineRange,
     headTolerance,
     posturePhase,
     ghostLm,
+    ellipses,
   });
 
   els.frameLabel.textContent = `${i + 1} / ${state.frames.length}`;
@@ -571,6 +589,7 @@ els.next.addEventListener("click", () => showFrame(state.current + 1));
 els.play.addEventListener("click", () => togglePlay());
 
 els.ghostToggle.addEventListener("change", () => drawFrame(state.current));
+els.uncertaintyToggle.addEventListener("change", () => drawFrame(state.current));
 
 // Drive the play/pause icon from the media events so every path (button,
 // click-to-play, keyboard, loop restart) stays in sync.
